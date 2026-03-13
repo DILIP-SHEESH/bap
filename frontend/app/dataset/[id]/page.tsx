@@ -1,419 +1,287 @@
 "use client"
 
+import { use, useEffect, useState, useMemo } from "react"
 import Link from "next/link"
-import dynamic from "next/dynamic"
-import { use, useEffect, useMemo, useRef, useState } from "react"
-import RouteDistributionChart from "../../components/RouteDistributionChart"
-import RouteVisualLab from "../../components/RouteVisualLab"
+import { motion, AnimatePresence } from "framer-motion"
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
+} from "recharts"
 
-const StopsMap = dynamic(() => import("../../components/StopsMap"), {
-  ssr: false
-})
-
-type DatasetItem = {
-  id: number | string
-  data: Record<string, unknown>
-}
-
-type Route = {
-  name: string
-  trips: number
-}
-
-function parseRoutes(value: unknown): Route[] {
-  if (typeof value !== "string" || !value.trim()) {
-    return []
-  }
-
-  try {
-    const parsed = JSON.parse(value.replace(/'/g, '"')) as Record<string, unknown>
-
-    return Object.entries(parsed)
-      .map(([name, trips]) => ({
-        name,
-        trips: Number(trips) || 0
-      }))
-      .filter((route) => route.trips > 0)
-      .sort((a, b) => b.trips - a.trips)
-  } catch {
-    return []
-  }
-}
-
-function AnimatedMetric({
-  label,
-  value,
-  suffix = "",
-  prefix = "",
-  description
-}: {
-  label: string
-  value: number
-  suffix?: string
-  prefix?: string
-  description: string
-}) {
-  const [displayValue, setDisplayValue] = useState(0)
-  const previousValue = useRef(0)
-
-  useEffect(() => {
-    let frame = 0
-    let startedAt = 0
-    const from = previousValue.current
-    const delta = value - from
-    const duration = 1200
-
-    const animate = (time: number) => {
-      if (!startedAt) {
-        startedAt = time
-      }
-
-      const progress = Math.min((time - startedAt) / duration, 1)
-      const eased = 1 - (1 - progress) ** 3
-
-      setDisplayValue(from + delta * eased)
-
-      if (progress < 1) {
-        frame = requestAnimationFrame(animate)
-      } else {
-        previousValue.current = value
-      }
-    }
-
-    frame = requestAnimationFrame(animate)
-
-    return () => cancelAnimationFrame(frame)
-  }, [value])
-
-  return (
-    <div className="group relative overflow-hidden rounded-2xl border border-cyan-100/20 bg-cyan-100/[0.03] p-4 backdrop-blur-md">
-      <div className="absolute inset-0 opacity-0 transition duration-700 group-hover:opacity-100 [background:radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.25),transparent_58%)]" />
-      <p className="relative text-xs uppercase tracking-[0.24em] text-cyan-100/70">{label}</p>
-      <p className="relative mt-3 text-3xl font-semibold text-cyan-50">
-        {prefix}
-        {Math.round(displayValue).toLocaleString("en-IN")}
-        {suffix}
-      </p>
-      <p className="relative mt-1 text-xs text-cyan-100/65">{description}</p>
-    </div>
-  )
-}
-
-function RouteOrbit({
-  routes,
-  selectedRoute,
-  onSelectRoute
-}: {
-  routes: Route[]
-  selectedRoute: string
-  onSelectRoute: (name: string) => void
-}) {
-  if (routes.length === 0) {
-    return (
-      <div className="mt-6 rounded-2xl border border-cyan-100/10 bg-cyan-100/[0.02] p-8 text-center text-cyan-100/70">
-        Route-level data is unavailable for this stop.
-      </div>
-    )
-  }
-
-  const maxTrips = routes[0]?.trips || 1
-  const orbitalNodes = routes.slice(0, 8).map((route, index, arr) => {
-    const angle = (index / arr.length) * Math.PI * 2 - Math.PI / 2
-    const intensity = route.trips / maxTrips
-    const radius = 26 + intensity * 15
-
-    return {
-      ...route,
-      x: 50 + Math.cos(angle) * radius,
-      y: 50 + Math.sin(angle) * radius,
-      intensity
-    }
-  })
-
-  return (
-    <div className="relative mt-6 h-[360px] overflow-hidden rounded-2xl border border-cyan-100/20 bg-[#04131f]">
-      <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-300/25 blur-3xl" />
-      <div className="absolute inset-0 [background:radial-gradient(circle_at_50%_50%,rgba(125,211,252,0.22),rgba(8,47,73,0.7)_42%,rgba(2,6,23,0.95)_80%)]" />
-      <div className="absolute inset-0 route-orbit-grid" />
-
-      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
-        {orbitalNodes.map((node, index) => (
-          <line
-            key={`${node.name}-beam-${index}`}
-            x1="50"
-            y1="50"
-            x2={node.x}
-            y2={node.y}
-            stroke="rgba(125, 211, 252, 0.46)"
-            strokeWidth="0.25"
-            style={{ animation: `beamPulse 2.8s ease-in-out ${index * 0.2}s infinite` }}
-          />
-        ))}
-
-        <circle cx="50" cy="50" r="8" fill="rgba(34, 211, 238, 0.88)" />
-        <circle cx="50" cy="50" r="12" fill="none" stroke="rgba(34,211,238,0.35)" strokeWidth="0.35" />
-      </svg>
-
-      {orbitalNodes.map((node, index) => {
-        const isSelected = node.name === selectedRoute
-
-        return (
-        <div
-          key={node.name}
-          className="group absolute cursor-pointer"
-          style={{
-            left: `${node.x}%`,
-            top: `${node.y}%`,
-            transform: "translate(-50%, -50%)"
-          }}
-          onClick={() => onSelectRoute(node.name)}
-        >
-          <div
-            className={`rounded-full border shadow-[0_0_25px_rgba(34,211,238,0.55)] backdrop-blur-sm ${
-              isSelected ? "border-cyan-100 bg-cyan-200/55" : "border-cyan-100/45 bg-cyan-300/25"
-            }`}
-            style={{
-              width: `${16 + node.intensity * 22 + (isSelected ? 8 : 0)}px`,
-              height: `${16 + node.intensity * 22 + (isSelected ? 8 : 0)}px`,
-              animation: `nodePulse 2.6s ease-in-out ${index * 0.15}s infinite`
-            }}
-          />
-          <div className="pointer-events-none absolute left-1/2 top-full mt-2 w-max -translate-x-1/2 rounded-md border border-cyan-100/20 bg-slate-950/70 px-2 py-1 text-xs text-cyan-50 opacity-0 transition duration-300 group-hover:opacity-100">
-            {node.name} | {node.trips.toLocaleString("en-IN")}
-          </div>
-        </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function RoutePulseList({
-  routes,
-  selectedRoute,
-  onSelectRoute
-}: {
-  routes: Route[]
-  selectedRoute: string
-  onSelectRoute: (name: string) => void
-}) {
-  if (routes.length === 0) {
-    return null
-  }
-
-  const topRoutes = routes.slice(0, 6)
-  const maxTrips = topRoutes[0]?.trips || 1
-
-  return (
-    <div className="mt-6 grid gap-3 md:grid-cols-2">
-      {topRoutes.map((route, index) => {
-        const width = Math.max(10, (route.trips / maxTrips) * 100)
-
-        return (
-          <button
-            key={route.name}
-            type="button"
-            onClick={() => onSelectRoute(route.name)}
-            className={`rounded-xl border p-3 text-left transition hover:-translate-y-0.5 ${
-              selectedRoute === route.name
-                ? "border-cyan-200/60 bg-cyan-300/[0.12]"
-                : "border-cyan-100/10 bg-cyan-100/[0.02] hover:border-cyan-100/30"
-            }`}
-            style={{ animationDelay: `${index * 120}ms` }}
-          >
-            <div className="mb-2 flex items-center justify-between text-sm text-cyan-50">
-              <span className="truncate pr-2">{route.name}</span>
-              <span>{route.trips.toLocaleString("en-IN")}</span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-cyan-100/10">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-400 to-blue-500 shadow-[0_0_14px_rgba(56,189,248,0.7)]"
-                style={{ width: `${width}%` }}
-              />
-            </div>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
-
+export default function DatasetAuditNode({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
   const id = resolvedParams.id
 
-  const [item, setItem] = useState<DatasetItem | null | undefined>(undefined)
-  const [selectedRoute, setSelectedRoute] = useState("")
+  const [res, setRes] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
-  useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/data/raw_tenders")
-      .then((res) => res.json())
-      .then((data) => {
-        const found = data.data.find((datasetItem: DatasetItem) => datasetItem.id == id)
-        setItem(found ?? null)
-      })
-      .catch(() => {
-        setItem(null)
-      })
-  }, [id])
+  // Inside DatasetAuditNode component
+useEffect(() => {
+  setLoading(true)
+  setError(false) // Reset error state on new fetch
 
-  const stop = item?.data ?? {}
-  const stopName = String(stop["Stop Name"] ?? "Unknown Stop")
-  const tripCount = Number(stop["Num trips in stop"] ?? 0)
-  const latitude = Number(stop["Latitude"] ?? 0)
-  const longitude = Number(stop["Longitude"] ?? 0)
-  const routeSource = typeof stop["Routes with num trips"] === "string" ? stop["Routes with num trips"] : ""
-  const routes = useMemo(() => parseRoutes(routeSource), [routeSource])
-  const activeSelectedRoute = routes.some((route) => route.name === selectedRoute)
-    ? selectedRoute
-    : (routes[0]?.name ?? "")
+  fetch(`http://127.0.0.1:8000/api/jit-fetch/${id}`)
+    .then((r) => {
+      if (!r.ok) throw new Error("Backend Node Unreachable")
+      return r.json()
+    })
+    .then((data) => {
+      setRes(data)
+      setLoading(false)
+    })
+    .catch((err) => {
+      console.error("Fetch failed:", err)
+      setError(true)
+      setLoading(false)
+    })
+}, [id])
 
-  const setSelectedRouteName = (routeName: string) => {
-    setSelectedRoute(routeName)
-  }
+// Guard for when the backend is literally not responding
+if (error) return (
+  <div className="min-h-screen bg-[#020205] flex flex-col items-center justify-center">
+    <div className="p-8 rounded-[32px] border border-red-500/20 bg-red-500/5 text-center backdrop-blur-xl">
+      <p className="text-red-500 font-mono text-xs uppercase tracking-widest mb-4 font-bold">Node_Connection_Failed</p>
+      <p className="text-white/60 text-sm mb-8">FastAPI server is currently unreachable. <br/> Run 'uvicorn app.main:app' in your backend terminal.</p>
+      <button 
+        onClick={() => window.location.reload()} 
+        className="px-6 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] uppercase font-bold tracking-widest hover:bg-white/10 transition"
+      >
+        Retry_Connection
+      </button>
+    </div>
+  </div>
+)
 
-  const selectedRouteData = routes.find((route) => route.name === activeSelectedRoute)
-  const topRoute = routes[0]
-  const totalRouteTrips = routes.reduce((sum, route) => sum + route.trips, 0)
-  const concentration = topRoute ? Math.round((topRoute.trips / totalRouteTrips) * 100) : 0
+  // --- AUTO-VISUALIZATION ENGINE ---
+  const chartData = useMemo(() => {
+    if (!res?.data || !Array.isArray(res.data)) return []
+    
+    // Take top 12 rows for the visual lab
+    return res.data.slice(0, 12).map((row: any) => {
+      const keys = Object.keys(row)
+      
+      // 1. Find a label (The first column that looks like a name or year)
+      const labelKey = keys.find(k => 
+        k.toLowerCase().includes('name') || 
+        k.toLowerCase().includes('ward') || 
+        k.toLowerCase().includes('year') ||
+        k.toLowerCase().includes('district')
+      ) || keys[0]
 
-  if (item === undefined) {
-    return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#030712] text-cyan-50">
-        <div className="absolute inset-0 aurora-mesh opacity-80" />
-        <div className="relative rounded-2xl border border-cyan-100/25 bg-slate-900/60 px-6 py-4 backdrop-blur-xl">
-          <span className="route-loading inline-block text-sm tracking-[0.3em] text-cyan-200/80">LOADING STOP SIGNAL</span>
-        </div>
-      </main>
-    )
-  }
+      // 2. Find a value (The column the backend flagged, or the first number)
+      const valueKey = res.insights?.analyzed_field || keys.find(k => typeof row[k] === 'number')
+      
+      return {
+        name: row[labelKey]?.toString().substring(0, 12) || "N/A",
+        value: Number(row[valueKey]) || 0,
+        fullName: row[labelKey]
+      }
+    })
+  }, [res])
 
-  if (!item) {
-    return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#020617] text-cyan-50">
-        <div className="absolute inset-0 aurora-mesh opacity-75" />
-        <div className="relative rounded-3xl border border-cyan-100/25 bg-slate-900/70 p-8 text-center backdrop-blur-xl">
-          <p className="text-xl font-semibold">Stop not found</p>
-          <p className="mt-2 text-cyan-100/75">The selected stop could not be loaded.</p>
-          <Link href="/" className="mt-6 inline-flex rounded-lg border border-cyan-100/25 px-4 py-2 text-sm text-cyan-50 hover:bg-cyan-100/10">
-            Back to stop list
-          </Link>
-        </div>
-      </main>
-    )
-  }
+  // GUARD 1: LOADING STATE
+  if (loading) return (
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center">
+      <div className="text-cyan-500 font-mono text-xs mb-4 animate-pulse uppercase tracking-[0.4em]">
+        Parsing_Govt_Node_{id}
+      </div>
+      <div className="h-1 w-64 bg-white/5 rounded-full overflow-hidden">
+        <motion.div 
+          className="h-full bg-cyan-500"
+          animate={{ x: [-256, 256] }}
+          transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+        />
+      </div>
+    </div>
+  )
+
+  // GUARD 2: ERROR STATE
+  if (error || !res?.metadata) return (
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-center p-6">
+      <p className="text-red-400 font-mono mb-4">CRITICAL_FETCH_FAILURE</p>
+      <p className="text-white/50 text-sm max-w-xs">The JIT engine could not parse this dataset. Check the backend CSV source.</p>
+      <Link href="/" className="mt-8 px-6 py-2 border border-white/10 rounded-full text-xs hover:bg-white/5 transition">
+        BACK TO CATALOG
+      </Link>
+    </div>
+  )
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#020617] text-cyan-50">
-      <div className="aurora-mesh absolute inset-0 opacity-90" />
-      <div className="absolute -left-24 top-16 h-[420px] w-[420px] rounded-full bg-cyan-500/20 blur-[140px]" />
-      <div className="absolute -right-20 top-52 h-[320px] w-[320px] rounded-full bg-blue-500/20 blur-[120px]" />
-      <div className="absolute bottom-8 left-1/3 h-[300px] w-[300px] rounded-full bg-emerald-400/15 blur-[120px]" />
+    <main className="min-h-screen bg-[#050505] text-white p-6 lg:p-12 relative overflow-hidden">
+      {/* Background Glow */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] -z-10" />
 
-      <div className="relative mx-auto max-w-7xl px-6 py-10 lg:px-10">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 rounded-full border border-cyan-100/25 bg-slate-950/60 px-4 py-2 text-xs tracking-[0.2em] text-cyan-100/85 transition hover:-translate-y-0.5 hover:bg-cyan-300/10"
-        >
-          <span className="text-lg leading-none">&lt;-</span>
-          STOP MATRIX
-        </Link>
-
-        <section className="glass-surface mt-6 overflow-hidden rounded-3xl border border-cyan-100/20 p-6 sm:p-8">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/80 to-transparent" />
-          <p className="text-xs uppercase tracking-[0.42em] text-cyan-100/60">Transit Singularity</p>
-
-          <h1 className="mt-4 max-w-4xl text-4xl font-semibold leading-tight text-transparent [background:linear-gradient(97deg,#ecfeff_0%,#7dd3fc_40%,#34d399_100%)] bg-clip-text md:text-6xl">
-            {stopName}
-          </h1>
-
-          <p className="mt-4 max-w-2xl text-sm text-cyan-100/75 md:text-base">
-            High-intensity view for the selected stop. Every pulse below is generated from route mix, trip volume, and geo-position data.
-          </p>
-
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <AnimatedMetric label="Total Trips" value={tripCount} description="Stop throughput signal" />
-            <AnimatedMetric label="Routes Active" value={routes.length} description="Distinct route channels" />
-            <AnimatedMetric
-              label="Top Route Share"
-              value={concentration}
-              suffix="%"
-              description={topRoute ? `${topRoute.name} dominates` : "No route dominance"}
-            />
-            <AnimatedMetric label="Route Volume" value={totalRouteTrips} description="Combined route trip count" />
+      <div className="max-w-7xl mx-auto relative z-10">
+        
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+          <div>
+            <Link href="/" className="group flex items-center gap-2 text-white/40 text-[10px] font-mono tracking-widest hover:text-cyan-500 transition">
+              <span className="group-hover:-translate-x-1 transition-transform">←</span> RETURN_TO_CATALOG
+            </Link>
+            <h1 className="text-4xl md:text-5xl font-bold mt-4 tracking-tight leading-tight">
+              {res?.metadata?.title}
+            </h1>
+            <div className="flex flex-wrap gap-2 mt-4">
+               {res?.metadata?.tags?.slice(0, 6).map((tag: string) => (
+                 <span key={tag} className="text-[9px] px-2 py-1 rounded bg-white/5 border border-white/10 text-white/40 uppercase font-mono tracking-tighter">
+                   {tag}
+                 </span>
+               ))}
+            </div>
           </div>
-        </section>
+          
+          <div className="bg-white/[0.03] border border-white/10 p-5 rounded-2xl backdrop-blur-xl">
+            <p className="text-[10px] text-cyan-500 font-mono uppercase mb-1">Node Status</p>
+            <div className="flex items-center gap-3">
+              <div className="h-2 w-2 rounded-full bg-cyan-500 shadow-[0_0_10px_#06b6d4]" />
+              <p className="text-lg font-bold font-mono uppercase tracking-tighter">LIVE_AUDIT</p>
+            </div>
+          </div>
+        </div>
 
-        <section className="mt-8 grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
-          <article className="glass-surface rounded-3xl border border-cyan-100/20 p-6 sm:p-8">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.34em] text-cyan-100/55">Visualization Core</p>
-                <h2 className="mt-2 text-2xl font-semibold text-cyan-50">Route Orbit Engine</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* MAIN CONTENT AREA */}
+          <div className="lg:col-span-2 space-y-8">
+            
+            {/* VISUAL LAB NODE */}
+            <section className="bg-white/[0.02] border border-white/10 rounded-[32px] p-8 relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
+              <div className="flex justify-between items-center mb-10">
+                <h3 className="text-xs font-mono text-cyan-500 uppercase tracking-[0.3em]">Node_Visual_Lab</h3>
+                <span className="text-[10px] text-white/20 font-mono italic">Rendering: {res?.insights?.analyzed_field}</span>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="rounded-full border border-cyan-200/25 px-3 py-1 text-xs text-cyan-100/70">Live Breakdown</span>
-                {selectedRouteData ? (
-                  <span className="rounded-full border border-cyan-200/35 bg-cyan-300/[0.16] px-3 py-1 text-xs text-cyan-50">
-                    Focus: {selectedRouteData.name}
-                  </span>
-                ) : null}
+              
+              <div className="h-[380px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                    <XAxis 
+                        dataKey="name" 
+                        stroke="#444" 
+                        fontSize={9} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        dy={10}
+                    />
+                    <YAxis 
+                        stroke="#444" 
+                        fontSize={9} 
+                        tickLine={false} 
+                        axisLine={false} 
+                    />
+                    <Tooltip 
+                      cursor={{fill: 'rgba(255,255,255,0.03)'}}
+                      contentStyle={{backgroundColor: '#0a0a0a', borderRadius: '16px', border: '1px solid #222', fontSize: '12px'}}
+                      itemStyle={{color: '#06b6d4'}}
+                    />
+                    <Bar dataKey="value">
+                      {chartData.map((entry: any, index: number) => (
+                        <Cell 
+                            key={`cell-${index}`} 
+                            fill={index === 0 ? '#06b6d4' : '#ffffff08'} 
+                            stroke={index === 0 ? '#06b6d4' : '#ffffff10'}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
+            </section>
+
+            {/* DATA STREAM PREVIEW */}
+            <section className="bg-white/[0.01] border border-white/5 rounded-[32px] p-8">
+              <h3 className="text-xs font-mono text-white/30 uppercase tracking-[0.2em] mb-8 text-center">Live_Data_Stream_Preview</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-light">
+                  <thead>
+                    <tr className="text-white/20 border-b border-white/5">
+                      {res?.data?.[0] && Object.keys(res.data[0]).slice(0, 5).map(k => (
+                        <th key={k} className="pb-4 font-mono font-medium uppercase tracking-tighter">{k}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {res?.data?.slice(0, 10).map((row: any, i: number) => (
+                      <tr key={i} className="group hover:bg-white/[0.02] transition-colors">
+                        {Object.values(row).slice(0, 5).map((v: any, j) => (
+                          <td key={j} className="py-4 text-white/50 group-hover:text-white/90 transition-colors truncate max-w-[150px]">
+                            {String(v)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          {/* SIDEBAR ANALYTICS */}
+          <div className="space-y-6">
+            
+            {/* AI AUDIT SUMMARY */}
+            <section className="bg-cyan-500 text-black rounded-[32px] p-8 shadow-[0_30px_60px_-12px_rgba(6,182,212,0.3)]">
+              <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 opacity-50">AI_Audit_Summary</h3>
+              <p className="text-2xl font-bold leading-[1.1] tracking-tight">
+                Current analysis highlights <span className="italic underline decoration-1 text-black/70">{res?.insights?.analyzed_field || 'data density'}</span> as the core metric.
+              </p>
+              <div className="mt-8 pt-6 border-t border-black/10">
+                <div className="flex justify-between items-end">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase opacity-40">System Recommendation</p>
+                    <p className="text-sm font-medium leading-snug mt-1">Cross-reference with annual BBMP budget allocations.</p>
+                  </div>
+                  <div className="text-2xl font-black opacity-20">4.3</div>
+                </div>
+              </div>
+            </section>
+
+            {/* ANOMALY LIST */}
+            <section className="bg-white/[0.03] border border-white/10 rounded-[32px] p-8">
+              <div className="flex items-center gap-2 mb-8">
+                <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                <h3 className="text-xs font-mono text-red-500 uppercase tracking-widest">Anomalies_Alert</h3>
+              </div>
+              <div className="space-y-4">
+                {res?.flags?.length > 0 ? res.flags.slice(0, 3).map((flag: any, i: number) => (
+                  <motion.div 
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    key={i} 
+                    className="p-4 rounded-2xl bg-red-500/5 border border-red-500/10 group hover:border-red-500/30 transition-all"
+                  >
+                    <p className="text-[9px] font-bold text-red-500 uppercase font-mono">{flag.type}</p>
+                    <p className="text-sm mt-2 text-white/80 leading-relaxed group-hover:text-white transition-colors">{flag.message}</p>
+                  </motion.div>
+                )) : (
+                  <p className="text-white/20 text-xs font-mono italic py-4">No significant deviations detected by engine.</p>
+                )}
+              </div>
+            </section>
+
+            {/* QUICK STATS */}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/[0.02] p-6 rounded-2xl border border-white/5 group hover:border-cyan-500/20 transition-all">
+                  <p className="text-[9px] text-white/30 uppercase font-mono mb-2 tracking-widest">Record_Count</p>
+                  <p className="text-2xl font-bold tracking-tighter">{res?.total_rows_available || 0}</p>
+                </div>
+                <div className="bg-white/[0.02] p-6 rounded-2xl border border-white/5 group hover:border-cyan-500/20 transition-all">
+                  <p className="text-[9px] text-white/30 uppercase font-mono mb-2 tracking-widest">Global_Mean</p>
+                  <p className="text-2xl font-bold tracking-tighter">{Math.round(res?.insights?.average || 0).toLocaleString()}</p>
+                </div>
             </div>
 
-            <RouteOrbit routes={routes} selectedRoute={activeSelectedRoute} onSelectRoute={setSelectedRouteName} />
-            <RoutePulseList routes={routes} selectedRoute={activeSelectedRoute} onSelectRoute={setSelectedRouteName} />
-          </article>
+          </div>
+        </div>
 
-          <article className="glass-surface rounded-3xl border border-cyan-100/20 p-6 sm:p-8">
-            <p className="text-xs uppercase tracking-[0.34em] text-cyan-100/55">Geo Trace</p>
-            <h2 className="mt-2 text-2xl font-semibold text-cyan-50">Stop Lock</h2>
+        {/* Footer info */}
+        <footer className="mt-20 pt-8 border-t border-white/5 flex justify-between items-center text-[10px] text-white/20 font-mono uppercase tracking-[0.2em]">
+          <div>Protocol_v4.3_Active</div>
+          <div>Location_Bengaluru_In</div>
+        </footer>
 
-            <div className="mt-5 overflow-hidden rounded-2xl border border-cyan-100/15">
-              <StopsMap
-                stops={[
-                  {
-                    name: stopName,
-                    trips: tripCount,
-                    lat: latitude,
-                    lng: longitude
-                  }
-                ]}
-              />
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-cyan-100/80">
-              <div className="rounded-xl border border-cyan-100/10 bg-cyan-100/[0.03] p-3">
-                <p className="text-cyan-100/60">Latitude</p>
-                <p className="mt-1 text-base text-cyan-50">{latitude.toFixed(5)}</p>
-              </div>
-              <div className="rounded-xl border border-cyan-100/10 bg-cyan-100/[0.03] p-3">
-                <p className="text-cyan-100/60">Longitude</p>
-                <p className="mt-1 text-base text-cyan-50">{longitude.toFixed(5)}</p>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        <section className="mt-8">
-          <article className="glass-surface rounded-3xl border border-cyan-100/20 p-6 sm:p-8">
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.34em] text-cyan-100/55">Signal Analysis</p>
-                <h2 className="mt-2 text-2xl font-semibold text-cyan-50">Route Energy Distribution</h2>
-              </div>
-            </div>
-
-            <RouteDistributionChart
-              routes={routes}
-              selectedRoute={activeSelectedRoute}
-              onSelectRoute={setSelectedRouteName}
-            />
-          </article>
-        </section>
-
-        <RouteVisualLab routes={routes} selectedRoute={activeSelectedRoute} onSelectRoute={setSelectedRouteName} />
       </div>
     </main>
   )

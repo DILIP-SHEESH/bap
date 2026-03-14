@@ -358,5 +358,5 @@ git push origin feature/your-feature-name
 
 ## Team
 
-Built for the Open Data Hackathon 2025.
-InsightAR — making government data speak plain English.
+Built for the Build for Bengaluru.
+CivLib - making government accountable

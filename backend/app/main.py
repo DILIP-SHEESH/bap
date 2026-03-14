@@ -157,12 +157,6 @@ class ReportPayload(BaseModel):
     chart_data: list = []
     nl_queries: list = []
 
-class ManualDataset(BaseModel):
-    title: str
-    description: str = ""
-    direct_csv_link: str
-    tags: list = []
-
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 def sanitize_float(val):
@@ -832,7 +826,6 @@ async def seed_catalog(keyword: str = "BBMP", limit: int = 10):
         inserted, skipped = [], []
         for record in matching[:limit]:
             try:
-                # Check if already exists by title
                 existing = supabase.table("data_catalog").select("id").eq("title", record["title"]).execute()
                 if existing.data:
                     skipped.append(record["title"])
@@ -855,33 +848,7 @@ async def seed_catalog(keyword: str = "BBMP", limit: int = 10):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ─── ENDPOINT 9: MANUAL DATASET INSERT ───────────────────────────────────────
-@app.post("/api/add-dataset")
-async def add_dataset_manually(dataset: ManualDataset):
-    """
-    Manually add any dataset by providing title + direct CSV URL.
-    Use this to add specific datasets you find on data.gov.in or elsewhere.
-    """
-    try:
-        record = {
-            "title": dataset.title,
-            "description": dataset.description,
-            "source_url": "",
-            "direct_csv_link": dataset.direct_csv_link,
-            "tags": dataset.tags,
-            "column_headers": [],
-        }
-        result = supabase.table("data_catalog").insert(record).execute()
-        return {
-            "status": "success",
-            "message": f"Dataset '{dataset.title}' added successfully",
-            "id": result.data[0]["id"] if result.data else "unknown",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ─── ENDPOINT 10: SEED ALL ────────────────────────────────────────────────────
+# ─── ENDPOINT 9: SEED ALL ────────────────────────────────────────────────────
 @app.post("/api/seed-all")
 async def seed_all():
     """Insert ALL hardcoded datasets at once."""
@@ -923,6 +890,5 @@ def health():
             "POST /api/search",
             "POST /api/seed          ← hardcoded datasets, no external API",
             "POST /api/seed-all      ← insert ALL 12 datasets at once",
-            "POST /api/add-dataset   ← manually add any CSV URL",
         ],
     }

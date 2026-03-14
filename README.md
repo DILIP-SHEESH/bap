@@ -25,7 +25,7 @@
 <br/>
 
 <p align="center">
-  <a href="#-live-demo"><strong>Live Demo</strong></a> ·
+  <a href="https://bap-ljuo.vercel.app/"><strong>Live Demo</strong></a> ·
   <a href="#-features"><strong>Features</strong></a> ·
   <a href="#-architecture"><strong>Architecture</strong></a> ·
   <a href="#-quick-start"><strong>Quick Start</strong></a> ·

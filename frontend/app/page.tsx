@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import Tilt from "react-parallax-tilt"
 
 type Dataset = {
   id: number
@@ -18,14 +17,21 @@ export default function Home() {
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(false)
   const [activeDept, setActiveDept] = useState("All")
-  const [mouse, setMouse] = useState({ x: 0, y: 0 })
+  const [mounted, setMounted] = useState(false)
+  const [searchStatus, setSearchStatus] = useState("idle") // NEW: Tracks if search found nothing
 
   const departments = ["All", "Health", "Finance", "Infrastructure", "Transport", "Governance"]
 
-  // UNIVERSAL SEARCH HANDLER
+  useEffect(() => {
+    setMounted(true)
+    handleSearch("BBMP")
+  }, [])
+
   const handleSearch = async (queryOverride?: string) => {
     const finalQuery = queryOverride || search || "BBMP"
     setLoading(true)
+    setSearchStatus("searching")
+    
     try {
       const res = await fetch("http://127.0.0.1:8000/api/search", {
         method: "POST",
@@ -33,20 +39,23 @@ export default function Home() {
         body: JSON.stringify({ query: finalQuery }),
       })
       const result = await res.json()
-      if (result.status === "success") {
+      
+      // FIX: Handle both success AND empty/error states correctly
+      if (result.status === "success" && result.datasets.length > 0) {
         setDatasets(result.datasets)
+        setSearchStatus("success")
+      } else {
+        setDatasets([]) // Clear old results!
+        setSearchStatus("empty")
       }
     } catch (err) {
       console.error("Search failed:", err)
+      setDatasets([])
+      setSearchStatus("error")
     } finally {
       setLoading(false)
     }
   }
-
-  // Initial load so the page isn't empty
-  useEffect(() => {
-    handleSearch("BBMP")
-  }, [])
 
   const filteredDatasets = useMemo(() => {
     if (activeDept === "All") return datasets
@@ -54,136 +63,128 @@ export default function Home() {
   }, [datasets, activeDept])
 
   return (
-    <main
-      onMouseMove={(e) => setMouse({ x: e.clientX, y: e.clientY })}
-      className="relative min-h-screen bg-[#020205] text-white overflow-x-hidden font-sans selection:bg-cyan-500/30"
-    >
-      {/* SPOTLIGHT EFFECT */}
-      <div className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
-        style={{ background: `radial-gradient(600px at ${mouse.x}px ${mouse.y}px, rgba(6, 182, 212, 0.12), transparent 80%)` }}
-      />
+    <main className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-blue-100">
+      
+      {/* 1. TOP UTILITY BAR */}
+      <div className="w-full border-b border-slate-200 bg-white/80 backdrop-blur-md px-8 py-3 flex justify-between items-center shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-2.5 w-2.5 rounded-full bg-blue-600 animate-pulse shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
+          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">System_Status: Operational</span>
+        </div>
+        <div className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-widest">
+          {mounted ? new Date().toLocaleDateString('en-GB') : "LOADING_TIMESTAMP"} // Bengaluru_Core_Registry
+        </div>
+      </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-16 lg:py-24">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-16">
         
-        {/* --- 1. GLOBAL COMMAND STATS --- */}
-        <section className="mb-20 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard label="Live Nodes" value="284" sub="Govt Sources" />
-          <StatCard label="Anomalies" value="14" color="text-red-500" sub="Flagged Today" />
-          <StatCard label="Rows Indexed" value="1.2M" sub="Analyzed" />
-          <StatCard label="System" value="Online" color="text-green-500" sub="v4.3 Stable" />
-        </section>
+        {/* 2. INSTITUTIONAL HEADER */}
+        <header className="mb-20">
+          <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-6">
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 mb-3">
+                Civic Data <span className="text-blue-600">Audit Engine</span>
+              </h1>
+              <p className="text-slate-500 max-w-xl text-sm md:text-base leading-relaxed">
+                Centralized intelligence portal for government dataset aggregation, 
+                automated anomaly detection, and cross-departmental analytics.
+              </p>
+            </motion.div>
+            <div className="hidden md:block text-right font-mono">
+              <p className="text-[10px] text-slate-400 uppercase mb-1">Access Protocol</p>
+              <p className="text-xs font-bold text-slate-700 tracking-tighter uppercase bg-slate-100 px-3 py-1 rounded-md">Public_Researcher_Node_v4.3</p>
+            </div>
+          </div>
 
-        {/* --- 2. HERO SECTION --- */}
-        <header className="mb-16">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <p className="text-cyan-500 font-mono tracking-[0.5em] text-[10px] mb-4 uppercase opacity-70">Civic Intelligence Protocol</p>
-            <h1 className="text-6xl md:text-[90px] leading-[0.85] font-black tracking-tighter mb-12">
-              Urban <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-400">Transparency</span>
-            </h1>
-          </motion.div>
-
-          {/* SEARCH FORM */}
-          <form 
-            onSubmit={(e) => { e.preventDefault(); handleSearch(); }} 
-            className="relative w-full max-w-3xl group"
-          >
-            <input
-              placeholder="Query the city node (e.g. 'health anomalies')..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full p-8 text-xl rounded-[32px] bg-white/[0.03] backdrop-blur-3xl border border-white/10 focus:border-cyan-500/40 outline-none transition pr-32 shadow-2xl group-hover:bg-white/[0.05]"
-            />
+          {/* SEARCH INTERFACE */}
+          <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="flex w-full shadow-xl rounded-2xl overflow-hidden group">
+            <div className="relative flex-grow bg-white">
+              <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
+                <svg className={`w-5 h-5 transition-colors ${loading ? 'text-blue-600 animate-spin' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {loading ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />}
+                </svg>
+              </div>
+              <input
+                placeholder="Query nodes (e.g. 'spending anomalies', 'morbidity trends')..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-transparent border-y border-l border-slate-200 py-6 pl-14 pr-8 text-base focus:outline-none focus:ring-inset focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400 font-medium"
+              />
+            </div>
             <button 
               type="submit"
-              className="absolute right-4 top-4 bottom-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black px-10 rounded-2xl transition-all shadow-[0_0_30px_rgba(34,211,238,0.3)] active:scale-95"
+              disabled={loading}
+              className="bg-slate-900 hover:bg-blue-600 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold px-8 md:px-16 transition-colors text-[11px] uppercase tracking-[0.2em]"
             >
-              {loading ? "..." : "SEARCH"}
+              {loading ? "Parsing..." : "Execute Search"}
             </button>
           </form>
         </header>
 
-        {/* --- 3. DEPARTMENT FILTERS --- */}
-        <div className="flex flex-wrap gap-2 mb-12">
+        {/* 3. DEPARTMENT FILTERS */}
+        <nav className="flex flex-wrap gap-2 mb-10 border-b border-slate-200 pb-8">
           {departments.map((dept) => (
             <button
               key={dept}
               onClick={() => setActiveDept(dept)}
-              className={`px-6 py-2 rounded-full border text-[10px] font-mono tracking-widest uppercase transition-all ${
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
                 activeDept === dept 
-                ? "bg-white text-black border-white font-bold" 
-                : "border-white/10 bg-white/5 text-white/40 hover:border-white/30"
+                ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
+                : "bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700"
               }`}
             >
               {dept}
             </button>
           ))}
-        </div>
+        </nav>
 
-        {/* --- 4. MASONRY RESULTS GRID --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* 4. DATA NODES LIST */}
+        <div className="grid grid-cols-1 gap-4">
           <AnimatePresence mode="popLayout">
             {filteredDatasets.map((item, i) => (
-              <Tilt
-                key={item.id}
-                glareEnable
-                glareMaxOpacity={0.1}
-                scale={1.02}
-              >
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <Link
-                    href={`/dataset/${item.id}`}
-                    className="group block p-8 rounded-[40px] bg-white/[0.02] backdrop-blur-xl border border-white/5 hover:border-cyan-500/30 transition-all relative overflow-hidden"
-                  >
-                    <div className="flex justify-between items-start mb-6 relative">
-                      <span className="text-[10px] font-mono text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-2 py-1 rounded">
-                        {item.relevance_confidence || "95%"} MATCH
+              <motion.div key={item.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ delay: i * 0.03 }}>
+                <Link href={`/dataset/${item.id}`} className="group flex flex-col md:flex-row md:items-center justify-between p-6 md:p-8 bg-white border border-slate-200 rounded-[24px] hover:border-blue-400 hover:shadow-xl hover:shadow-blue-100 transition-all duration-300">
+                  <div className="flex-grow">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-[9px] font-black text-blue-700 px-3 py-1 uppercase bg-blue-50 rounded-lg">
+                        {item.relevance_confidence || "95%"} Match
                       </span>
-                      <span className="text-white/10 font-mono text-[10px]">NODE_{item.id}</span>
+                      <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">REF: 0x{item.id}</span>
                     </div>
-
-                    <h2 className="text-2xl font-bold relative leading-tight group-hover:text-cyan-100 transition-colors">
+                    <h2 className="text-xl md:text-2xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                       {item.title}
                     </h2>
-
-                    <p className="text-white/40 mt-4 text-sm relative line-clamp-3 leading-relaxed italic font-light">
-                      {item.description || "Dataset profiling complete. Anomaly detection ready for audit."}
+                    <p className="text-sm text-slate-500 mt-2 line-clamp-1 font-medium">
+                      {item.description || "Synthesizing metadata... Full interpretation ready."}
                     </p>
-
-                    <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between relative opacity-0 group-hover:opacity-100 transition-all">
-                      <span className="text-[10px] font-black tracking-widest text-cyan-500 uppercase">Initialize Audit Node →</span>
+                  </div>
+                  
+                  <div className="mt-6 md:mt-0 flex items-center gap-8">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1 tracking-widest">Audit Level</p>
+                      <p className="text-xs font-black text-slate-800 uppercase">AI Automated</p>
                     </div>
-                  </Link>
-                </motion.div>
-              </Tilt>
+                    <div className="h-12 w-12 flex items-center justify-center rounded-2xl bg-slate-50 border border-slate-100 group-hover:bg-blue-600 group-hover:border-blue-600 transition-colors duration-300">
+                      <svg className="w-5 h-5 text-slate-400 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
             ))}
           </AnimatePresence>
+          
+          {/* FIX: THE EMPTY STATE NOW WORKS */}
+          {!loading && searchStatus === "empty" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-32 bg-white rounded-[32px] border border-dashed border-slate-300">
+              <p className="text-slate-900 font-bold text-lg mb-2">No civic nodes found.</p>
+              <p className="text-slate-500 font-medium text-sm">Try searching for "health", "finance", or "infrastructure".</p>
+            </motion.div>
+          )}
         </div>
-
-        {/* EMPTY STATE */}
-        {!loading && filteredDatasets.length === 0 && search && (
-          <div className="text-center py-20 border border-dashed border-white/10 rounded-[40px]">
-            <p className="text-white/20 font-mono uppercase tracking-[0.3em] text-xs">No matching nodes found in civic catalog.</p>
-          </div>
-        )}
 
       </div>
     </main>
-  )
-}
-
-function StatCard({ label, value, sub, color = "text-white" }: any) {
-  return (
-    <div className="bg-white/[0.02] border border-white/5 p-6 rounded-[32px] backdrop-blur-md">
-      <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em] mb-2">{label}</p>
-      <p className={`text-4xl font-black tracking-tighter ${color}`}>{value}</p>
-      <p className="text-[9px] text-white/20 font-mono mt-1 uppercase">{sub}</p>
-    </div>
   )
 }

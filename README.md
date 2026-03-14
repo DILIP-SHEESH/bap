@@ -168,8 +168,6 @@ The search engine expands queries with a synonym graph (`accident → fatal, rto
 
 ![Geo Map](https://github.com/DILIP-SHEESH/bap/blob/main/images/map.png?raw=true)
 
-> **Note:** Screenshots above are placeholders — replace with actual paths once uploaded to the repo. The live app is running at Bengaluru on `localhost:3000` (see demo link above).
-
 ---
 
 ## ⚡ Quick Start

@@ -138,35 +138,35 @@ The search engine expands queries with a synonym graph (`accident → fatal, rto
 ### 🏠 Home — Dataset Discovery
 > Semantic search across Bengaluru's civic data catalog. Type in natural language, filter by department.
 
-![Home Screen](https://github.com/DILIP-SHEESH/bap/raw/main/frontend/public/screenshots/home.png)
+![Home Screen](https://github.com/DILIP-SHEESH/bap/blob/main/images/home.png?raw=true)
 
 ---
 
 ### 📊 Audit Dashboard — Live Data Intelligence
 > Real-time streaming audit of 91,620 BBMP grievance records. Cross-dataset correlation active.
 
-![Audit Dashboard](https://github.com/DILIP-SHEESH/bap/raw/main/frontend/public/screenshots/dashboard.png)
+![Audit Dashboard](https://github.com/DILIP-SHEESH/bap/blob/main/images/dashboard.png?raw=true)
 
 ---
 
 ### 🧠 AI Inference Terminal
 > Llama-3.1-8b streams a 4-sentence analysis citing actual statistics and naming outlier entities.
 
-![AI Terminal](https://github.com/DILIP-SHEESH/bap/raw/main/frontend/public/screenshots/ai-terminal.png)
+![AI Terminal](https://github.com/DILIP-SHEESH/bap/blob/main/images/ai-terminal.png?raw=true)
 
 ---
 
 ### 🔗 Cross-Dataset Correlation Engine
 > Two datasets loaded simultaneously. Shared anomaly entities flagged in red.
 
-![Correlation Engine](https://github.com/DILIP-SHEESH/bap/raw/main/frontend/public/screenshots/correlation.png)
+![Correlation Engine](https://github.com/DILIP-SHEESH/bap/blob/main/images/correlation.png?raw=true)
 
 ---
 
 ### 🗺️ Geo Location Map
 > Auto-detected lat/lng columns rendered as a heat-colored interactive map. Zero configuration.
 
-![Geo Map](https://github.com/DILIP-SHEESH/bap/raw/main/frontend/public/screenshots/map.png)
+![Geo Map](https://github.com/DILIP-SHEESH/bap/blob/main/images/map.png?raw=true)
 
 > **Note:** Screenshots above are placeholders — replace with actual paths once uploaded to the repo. The live app is running at Bengaluru on `localhost:3000` (see demo link above).
 

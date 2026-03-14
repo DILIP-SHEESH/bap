@@ -358,5 +358,5 @@ git push origin feature/your-feature-name
 
 ## Team
 
-Commit-Men ( BUILD FOR BENGALURU )
+Commit-Men ( BUILD FOR BENGALURU - 2026 )
 CivLib - making government accountable

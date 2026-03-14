@@ -11,3 +11,9 @@ pydantic>=2.0
 openpyxl
 xlrd
 pdfplumber
+supabase
+httpx
+postgrest
+gotrue
+realtime
+storage3

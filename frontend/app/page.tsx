@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -18,17 +18,22 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [activeDept, setActiveDept] = useState("All")
   const [mounted, setMounted] = useState(false)
-  const [searchStatus, setSearchStatus] = useState("idle") // NEW: Tracks if search found nothing
+  const [searchStatus, setSearchStatus] = useState("idle")
+
+  // THE KILLER PITCH: Investigator Mode States
+  const [investigatorMode, setInvestigatorMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   const departments = ["All", "Health", "Finance", "Infrastructure", "Transport", "Governance"]
 
   useEffect(() => {
     setMounted(true)
-    handleSearch("BBMP")
+    handleSearch("") // Fetch all default data on load without hardcoding a query
   }, [])
 
+  // THE FOOLPROOF SEARCH ENGINE
   const handleSearch = async (queryOverride?: string) => {
-    const finalQuery = queryOverride || search || "BBMP"
+    const finalQuery = queryOverride !== undefined ? queryOverride : search
     setLoading(true)
     setSearchStatus("searching")
     
@@ -40,12 +45,16 @@ export default function Home() {
       })
       const result = await res.json()
       
-      // FIX: Handle both success AND empty/error states correctly
-      if (result.status === "success" && result.datasets.length > 0) {
+      if (result.status === "success" && result.datasets && result.datasets.length > 0) {
         setDatasets(result.datasets)
         setSearchStatus("success")
+        
+        // Auto-switch active tab based on backend AI logic
+        if (result.suggested_dept && departments.includes(result.suggested_dept)) {
+          setActiveDept(result.suggested_dept)
+        }
       } else {
-        setDatasets([]) // Clear old results!
+        setDatasets([])
         setSearchStatus("empty")
       }
     } catch (err) {
@@ -57,13 +66,20 @@ export default function Home() {
     }
   }
 
-  const filteredDatasets = useMemo(() => {
-    if (activeDept === "All") return datasets
-    return datasets.filter(d => d.tags?.some(t => t.toLowerCase() === activeDept.toLowerCase()))
-  }, [datasets, activeDept])
+  // Make department buttons trigger actual backend AI searches instead of local filtering
+  const handleDeptClick = (dept: string) => {
+    setActiveDept(dept)
+    if (dept === "All") {
+      setSearch("")
+      handleSearch("")
+    } else {
+      setSearch(dept)
+      handleSearch(dept)
+    }
+  }
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-blue-100">
+    <main className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-blue-100 pb-20">
       
       {/* 1. TOP UTILITY BAR */}
       <div className="w-full border-b border-slate-200 bg-white/80 backdrop-blur-md px-8 py-3 flex justify-between items-center shadow-sm">
@@ -76,10 +92,10 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-16">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-12">
         
         {/* 2. INSTITUTIONAL HEADER */}
-        <header className="mb-20">
+        <header className="mb-12">
           <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
               <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 mb-3">
@@ -92,7 +108,7 @@ export default function Home() {
             </motion.div>
             <div className="hidden md:block text-right font-mono">
               <p className="text-[10px] text-slate-400 uppercase mb-1">Access Protocol</p>
-              <p className="text-xs font-bold text-slate-700 tracking-tighter uppercase bg-slate-100 px-3 py-1 rounded-md">Public_Researcher_Node_v4.3</p>
+              <p className="text-xs font-bold text-slate-700 tracking-tighter uppercase bg-slate-100 px-3 py-1 rounded-md border border-slate-200 shadow-sm">Public_Researcher_Node_v5.0</p>
             </div>
           </div>
 
@@ -105,7 +121,7 @@ export default function Home() {
                 </svg>
               </div>
               <input
-                placeholder="Query nodes (e.g. 'spending anomalies', 'morbidity trends')..."
+                placeholder="Query nodes (e.g. 'hospital budget', 'infrastructure defects')..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-transparent border-y border-l border-slate-200 py-6 pl-14 pr-8 text-base focus:outline-none focus:ring-inset focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400 font-medium"
@@ -121,16 +137,49 @@ export default function Home() {
           </form>
         </header>
 
-        {/* 3. DEPARTMENT FILTERS */}
+        {/* 3. INVESTIGATOR MODE TOGGLE (THE WINNING PITCH) */}
+        <div className="mb-10 flex items-center justify-between bg-white border border-blue-200 p-5 rounded-[20px] shadow-sm">
+          <div className="flex items-center gap-5">
+            <button 
+              onClick={() => { setInvestigatorMode(!investigatorMode); setSelectedIds([]); }}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${investigatorMode ? 'bg-red-500' : 'bg-slate-200'}`}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${investigatorMode ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+            <div>
+              <p className={`text-xs font-black uppercase tracking-widest ${investigatorMode ? 'text-red-600' : 'text-slate-800'}`}>Investigator Mode</p>
+              <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide mt-0.5">Cross-reference multiple datasets to expose anomalies.</p>
+            </div>
+          </div>
+          
+          <AnimatePresence>
+            {investigatorMode && selectedIds.length > 0 && (
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
+                {selectedIds.length === 2 ? (
+                  <Link href={`/correlate?idA=${selectedIds[0]}&idB=${selectedIds[1]}`} className="px-8 py-3 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-red-700 shadow-[0_0_15px_rgba(220,38,38,0.4)] transition-all flex items-center gap-3">
+                    <span className="h-2 w-2 bg-white rounded-full animate-ping" />
+                    Launch AI Correlation
+                  </Link>
+                ) : (
+                  <span className="px-6 py-2.5 bg-slate-100 text-slate-500 font-bold text-[10px] uppercase tracking-widest rounded-xl border border-slate-200">
+                    Select 1 more dataset...
+                  </span>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* 4. DEPARTMENT AI TRIGGERS */}
         <nav className="flex flex-wrap gap-2 mb-10 border-b border-slate-200 pb-8">
           {departments.map((dept) => (
             <button
               key={dept}
-              onClick={() => setActiveDept(dept)}
+              onClick={() => handleDeptClick(dept)}
               className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
                 activeDept === dept 
-                ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
-                : "bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200" 
+                : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700 hover:bg-slate-50"
               }`}
             >
               {dept}
@@ -138,48 +187,83 @@ export default function Home() {
           ))}
         </nav>
 
-        {/* 4. DATA NODES LIST */}
+        {/* 5. DATA NODES LIST */}
         <div className="grid grid-cols-1 gap-4">
           <AnimatePresence mode="popLayout">
-            {filteredDatasets.map((item, i) => (
-              <motion.div key={item.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ delay: i * 0.03 }}>
-                <Link href={`/dataset/${item.id}`} className="group flex flex-col md:flex-row md:items-center justify-between p-6 md:p-8 bg-white border border-slate-200 rounded-[24px] hover:border-blue-400 hover:shadow-xl hover:shadow-blue-100 transition-all duration-300">
-                  <div className="flex-grow">
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="text-[9px] font-black text-blue-700 px-3 py-1 uppercase bg-blue-50 rounded-lg">
-                        {item.relevance_confidence || "95%"} Match
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">REF: 0x{item.id}</span>
+            {datasets.map((item, i) => {
+              const isSelected = selectedIds.includes(item.id.toString());
+              
+              return (
+                <motion.div key={item.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ delay: i * 0.03 }}>
+                  <div 
+                    onClick={() => {
+                      if (investigatorMode) {
+                        if (isSelected) {
+                          setSelectedIds(selectedIds.filter(id => id !== item.id.toString()))
+                        } else if (selectedIds.length < 2) {
+                          setSelectedIds([...selectedIds, item.id.toString()])
+                        }
+                      } else {
+                        window.location.href = `/dataset/${item.id}`
+                      }
+                    }}
+                    className={`cursor-pointer group flex flex-col md:flex-row md:items-center justify-between p-6 md:p-8 bg-white border rounded-[24px] transition-all duration-300 ${
+                      isSelected 
+                      ? "border-red-500 shadow-lg shadow-red-100 bg-red-50/20 ring-1 ring-red-500/50" 
+                      : "border-slate-200 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-100"
+                    }`}
+                  >
+                    <div className="flex-grow pr-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className={`text-[9px] font-black px-3 py-1 uppercase rounded-lg ${isSelected ? 'text-red-700 bg-red-100' : 'text-blue-700 bg-blue-50'}`}>
+                          {item.relevance_confidence || "95%"} Match
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">REF: 0x{item.id}</span>
+                      </div>
+                      <h2 className={`text-xl md:text-2xl font-bold transition-colors ${isSelected ? 'text-red-600' : 'text-slate-900 group-hover:text-blue-600'}`}>
+                        {item.title}
+                      </h2>
+                      <p className="text-sm text-slate-500 mt-2 line-clamp-1 font-medium">
+                        {item.description || "Synthesizing metadata... Full interpretation ready."}
+                      </p>
                     </div>
-                    <h2 className="text-xl md:text-2xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                      {item.title}
-                    </h2>
-                    <p className="text-sm text-slate-500 mt-2 line-clamp-1 font-medium">
-                      {item.description || "Synthesizing metadata... Full interpretation ready."}
-                    </p>
+                    
+                    <div className="mt-6 md:mt-0 flex items-center gap-8 shrink-0">
+                      <div className="text-right hidden sm:block">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase mb-1 tracking-widest">Action</p>
+                        <p className={`text-xs font-black uppercase ${isSelected ? 'text-red-600' : 'text-slate-800'}`}>
+                          {investigatorMode ? (isSelected ? 'Selected' : 'Select Node') : 'Analyze Data'}
+                        </p>
+                      </div>
+                      <div className={`h-12 w-12 flex items-center justify-center rounded-2xl border transition-colors duration-300 ${
+                        isSelected 
+                        ? 'bg-red-500 border-red-500 text-white' 
+                        : 'bg-slate-50 border-slate-100 text-slate-400 group-hover:bg-blue-600 group-hover:border-blue-600 group-hover:text-white'
+                      }`}>
+                        {investigatorMode && isSelected ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="mt-6 md:mt-0 flex items-center gap-8">
-                    <div className="text-right hidden sm:block">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1 tracking-widest">Audit Level</p>
-                      <p className="text-xs font-black text-slate-800 uppercase">AI Automated</p>
-                    </div>
-                    <div className="h-12 w-12 flex items-center justify-center rounded-2xl bg-slate-50 border border-slate-100 group-hover:bg-blue-600 group-hover:border-blue-600 transition-colors duration-300">
-                      <svg className="w-5 h-5 text-slate-400 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
+                </motion.div>
+              )
+            })}
           </AnimatePresence>
           
-          {/* FIX: THE EMPTY STATE NOW WORKS */}
+          {/* THE FOOLPROOF EMPTY STATE */}
           {!loading && searchStatus === "empty" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-32 bg-white rounded-[32px] border border-dashed border-slate-300">
-              <p className="text-slate-900 font-bold text-lg mb-2">No civic nodes found.</p>
-              <p className="text-slate-500 font-medium text-sm">Try searching for "health", "finance", or "infrastructure".</p>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-32 bg-white rounded-[32px] border border-dashed border-slate-300 shadow-sm">
+              <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
+              <p className="text-slate-900 font-bold text-lg mb-2">No civic nodes found for "{search}".</p>
+              <p className="text-slate-500 font-medium text-sm">Our AI couldn't correlate your query with the current catalog. Try standard terms like "budget".</p>
+              <button onClick={() => handleDeptClick("All")} className="mt-8 px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition">
+                Reset Catalog
+              </button>
             </motion.div>
           )}
         </div>

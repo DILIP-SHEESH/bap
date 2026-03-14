@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from typing import Optional
 from dotenv import load_dotenv
 from groq import Groq
 
@@ -23,114 +24,11 @@ groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "*"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ─── REAL GOVERNMENT DATASET CATALOG ─────────────────────────────────────────
-# These are verified working CSV URLs from data.gov.in and OGD India.
-# The seeder inserts these directly — no external API call needed.
-HARDCODED_DATASETS = [
-    {
-        "title": "BBMP Ward Wise Budget Expenditure 2022-23",
-        "description": "Bruhat Bengaluru Mahanagara Palike ward-wise budget allocation and expenditure for financial year 2022-23",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://raw.githubusercontent.com/datameet/municipal-data/master/Bangalore/BBMP/budget.csv",
-        "tags": ["BBMP", "budget", "ward", "bangalore", "expenditure", "finance"],
-        "column_headers": [],
-    },
-    {
-        "title": "Karnataka District Wise Hospital Infrastructure",
-        "description": "District-wise count of hospitals, PHCs, CHCs, and hospital beds across Karnataka",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://data.gov.in/resource/districtwise-health-infrastructure-karnataka",
-        "tags": ["Karnataka", "health", "hospital", "district", "infrastructure"],
-        "column_headers": [],
-    },
-    {
-        "title": "India State Wise Literacy Rate Census 2011",
-        "description": "State and district wise literacy rates from Census 2011 including male and female breakdown",
-        "source_url": "https://censusindia.gov.in",
-        "direct_csv_link": "https://api.data.gov.in/resource/e7ce14ba-e6fe-4c7b-8b6e-7d0c7d17e2d1?api-key=579b464db66ec23bdd000001cdd3946e44ce4aae38d1fe54a7b1e84&format=csv",
-        "tags": ["census", "literacy", "india", "state", "education"],
-        "column_headers": [],
-    },
-    {
-        "title": "Karnataka District Wise Crime Statistics 2022",
-        "description": "IPC cognizable crimes registered and persons arrested district-wise in Karnataka 2022",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://api.data.gov.in/resource/d2a8a4f2-df04-4e1f-bdcd-c28f679a35b5?api-key=579b464db66ec23bdd000001cdd3946e44ce4aae38d1fe54a7b1e84&format=csv",
-        "tags": ["crime", "Karnataka", "district", "IPC", "police"],
-        "column_headers": [],
-    },
-    {
-        "title": "BBMP Solid Waste Management Ward Data",
-        "description": "Ward-wise solid waste collection, processing and disposal data for Bangalore city",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://api.data.gov.in/resource/8a3e0dac-85c5-4cf2-9b19-3ad4a8b14e3c?api-key=579b464db66ec23bdd000001cdd3946e44ce4aae38d1fe54a7b1e84&format=csv",
-        "tags": ["BBMP", "waste", "ward", "bangalore", "swm", "environment"],
-        "column_headers": [],
-    },
-    {
-        "title": "Karnataka Taluk Wise Agricultural Land Use",
-        "description": "Taluk-wise area under different crops and land use patterns in Karnataka",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://api.data.gov.in/resource/9f1b2ad6-23c5-4a4e-9b8a-d2f4e3c7a1b5?api-key=579b464db66ec23bdd000001cdd3946e44ce4aae38d1fe54a7b1e84&format=csv",
-        "tags": ["Karnataka", "agriculture", "taluk", "land", "crop"],
-        "column_headers": [],
-    },
-    {
-        "title": "India National Highway Length State Wise",
-        "description": "State-wise length of national highways under NHAI as of 2023",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://api.data.gov.in/resource/b8c2e1f4-6d3a-4b9c-8e7f-1a2c3d4e5f6a?api-key=579b464db66ec23bdd000001cdd3946e44ce4aae38d1fe54a7b1e84&format=csv",
-        "tags": ["highway", "infrastructure", "state", "NHAI", "roads"],
-        "column_headers": [],
-    },
-    {
-        "title": "Karnataka District Wise School Enrollment",
-        "description": "District-wise student enrollment in government schools across Karnataka by class and gender",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://api.data.gov.in/resource/3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f?api-key=579b464db66ec23bdd000001cdd3946e44ce4aae38d1fe54a7b1e84&format=csv",
-        "tags": ["Karnataka", "education", "school", "enrollment", "district"],
-        "column_headers": [],
-    },
-    {
-        "title": "BBMP Property Tax Collection Ward Wise 2023",
-        "description": "Ward-wise property tax demand, collection and arrears for BBMP Bangalore 2023",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://api.data.gov.in/resource/1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d?api-key=579b464db66ec23bdd000001cdd3946e44ce4aae38d1fe54a7b1e84&format=csv",
-        "tags": ["BBMP", "property tax", "ward", "bangalore", "revenue"],
-        "column_headers": [],
-    },
-    {
-        "title": "Karnataka District Wise Water Supply Coverage",
-        "description": "District-wise drinking water supply coverage and household connectivity in Karnataka",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://api.data.gov.in/resource/9e8d7c6b-5a4f-3e2d-1c0b-9a8f7e6d5c4b?api-key=579b464db66ec23bdd000001cdd3946e44ce4aae38d1fe54a7b1e84&format=csv",
-        "tags": ["Karnataka", "water", "supply", "district", "infrastructure"],
-        "column_headers": [],
-    },
-    {
-        "title": "India State Wise PM Awas Yojana Progress",
-        "description": "State-wise progress of Pradhan Mantri Awas Yojana (Urban) housing scheme",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://api.data.gov.in/resource/4f5e6d7c-8b9a-0c1d-2e3f-4a5b6c7d8e9f?api-key=579b464db66ec23bdd000001cdd3946e44ce4aae38d1fe54a7b1e84&format=csv",
-        "tags": ["welfare", "housing", "PMAY", "state", "scheme"],
-        "column_headers": [],
-    },
-    {
-        "title": "Bangalore Metro BMTC Route Wise Ridership",
-        "description": "BMTC bus route wise daily ridership and revenue data for Bangalore",
-        "source_url": "https://data.gov.in",
-        "direct_csv_link": "https://api.data.gov.in/resource/2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e?api-key=579b464db66ec23bdd000001cdd3946e44ce4aae38d1fe54a7b1e84&format=csv",
-        "tags": ["bangalore", "transport", "BMTC", "bus", "ridership"],
-        "column_headers": [],
-    },
-]
-
 
 # ─── MODELS ───────────────────────────────────────────────────────────────────
 class SearchQuery(BaseModel):
@@ -148,6 +46,7 @@ class NLQueryPayload(BaseModel):
 class CorrelationPayload(BaseModel):
     dataset_id_a: str
     dataset_id_b: str
+    query: Optional[str] = None  # Dynamic user search for correlation
 
 class ReportPayload(BaseModel):
     dataset_title: str
@@ -166,32 +65,22 @@ def sanitize_float(val):
     except (TypeError, ValueError):
         return 0.0
 
-
 def numpy_to_python(obj):
-    if obj is None:
-        return None
-    if isinstance(obj, (np.integer,)):
-        return int(obj)
+    if obj is None: return None
+    if isinstance(obj, (np.integer,)): return int(obj)
     if isinstance(obj, (np.floating,)):
         v = float(obj)
         return 0.0 if (math.isnan(v) or math.isinf(v)) else v
-    if isinstance(obj, np.bool_):
-        return bool(obj)
-    if isinstance(obj, np.ndarray):
-        return [numpy_to_python(i) for i in obj.tolist()]
-    if isinstance(obj, float):
-        return 0.0 if (math.isnan(obj) or math.isinf(obj)) else obj
-    if isinstance(obj, dict):
-        return {str(k): numpy_to_python(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [numpy_to_python(i) for i in obj]
+    if isinstance(obj, np.bool_): return bool(obj)
+    if isinstance(obj, np.ndarray): return [numpy_to_python(i) for i in obj.tolist()]
+    if isinstance(obj, float): return 0.0 if (math.isnan(obj) or math.isinf(obj)) else obj
+    if isinstance(obj, dict): return {str(k): numpy_to_python(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)): return [numpy_to_python(i) for i in obj]
     try:
-        if pd.isna(obj):
-            return None
+        if pd.isna(obj): return None
     except (TypeError, ValueError):
         pass
     return obj
-
 
 def try_parse_csv(content_str: str) -> pd.DataFrame:
     strategies = [
@@ -215,20 +104,74 @@ def try_parse_csv(content_str: str) -> pd.DataFrame:
             continue
     raise ValueError(f"Could not parse CSV. Last error: {last_err}")
 
-
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.dropna(how="all").dropna(axis=1, how="all")
+    df = df.reset_index(drop=True)
+    
+    if any(str(c).startswith("col_") or "Unnamed" in str(c) for c in df.columns):
+        for idx, row in df.head(5).iterrows():
+            valid = [str(x) for x in row if pd.notna(x) and len(str(x).strip()) > 2]
+            if len(valid) >= len(df.columns) * 0.4:
+                df.columns = [str(x).strip() if pd.notna(x) else f"Feature_{i}" for i, x in enumerate(row)]
+                df = df.iloc[idx+1:].reset_index(drop=True)
+                break
+
+    df.columns = [re.sub(r'[^\x00-\x7F]+', '', str(c)).strip() or f"Column_{i}" for i, c in enumerate(df.columns)]
+    
     for col in df.columns:
+        if df[col].astype(str).str.match(r'^[\s\-]*$').all():
+            df.drop(columns=[col], inplace=True)
+            continue
+            
         if df[col].dtype == "object":
-            try:
-                cleaned = df[col].astype(str).str.replace(",", "").str.strip()
-                coerced = pd.to_numeric(cleaned, errors="coerce")
-                non_null = coerced.notna().sum()
-                if non_null > 0 and non_null / len(df) >= 0.5:
-                    df[col] = coerced
-            except Exception:
-                pass
+            ext = df[col].astype(str).str.extract(r'([-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+\.\d+|\d+)', expand=False)
+            coerced = pd.to_numeric(ext.str.replace(',', ''), errors="coerce")
+            if coerced.notna().sum() > 0 and (coerced.notna().sum() / len(df)) >= 0.1:
+                df[col] = coerced
+            else:
+                def clean_text(val):
+                    val_str = str(val).strip()
+                    if pd.isna(val) or val_str in ('-', 'nan', 'None', ''): return None
+                    weird = len(re.findall(r'[^\x00-\x7F]', val_str))
+                    if weird > 0 and len(val_str) > 0 and (weird / len(val_str)) > 0.3:
+                        return "[Regional/Unstructured Data]"
+                    return val_str
+                df[col] = df[col].apply(clean_text)
     return df
 
+def parse_pdf_to_df(content: bytes) -> pd.DataFrame:
+    try:
+        import pdfplumber
+        import io as _io
+    except ImportError:
+        raise HTTPException(status_code=422, detail="pdfplumber not installed")
+
+    with pdfplumber.open(_io.BytesIO(content)) as pdf:
+        all_rows = []
+        for page in pdf.pages:
+            t = page.extract_table()
+            if t: all_rows.extend(t)
+
+    if not all_rows: raise ValueError("No tables found in PDF")
+
+    from collections import Counter
+    lengths = [len(r) for r in all_rows if r]
+    if not lengths: raise ValueError("PDF tables are empty")
+
+    canonical_len = Counter(lengths).most_common(1)[0][0]
+    normalised = []
+    for row in all_rows:
+        if row is None: continue
+        row = list(row)
+        if len(row) < canonical_len: row += [None] * (canonical_len - len(row))
+        elif len(row) > canonical_len: row = row[:canonical_len]
+        normalised.append(row)
+
+    if not normalised: raise ValueError("No valid rows after normalisation")
+
+    header = [str(h).strip() if h else f"col_{i}" for i, h in enumerate(normalised[0])]
+    df = pd.DataFrame(normalised[1:], columns=header)
+    return df
 
 def fetch_and_clean_df(dataset_id: str):
     response = supabase.table("data_catalog").select("*").eq("id", dataset_id).execute()
@@ -241,53 +184,27 @@ def fetch_and_clean_df(dataset_id: str):
         raise HTTPException(status_code=400, detail="No data URL for this dataset")
 
     url_lower = source_url.lower().split("?")[0]
+    req = requests.get(source_url, timeout=20)
+    req.raise_for_status()
 
-    if url_lower.endswith(".xlsx") or url_lower.endswith(".xls"):
-        req = requests.get(source_url, timeout=20)
-        req.raise_for_status()
-        try:
-            df = pd.read_excel(req.content, engine="openpyxl")
-        except Exception:
-            try:
-                df = pd.read_excel(req.content, engine="xlrd")
-            except Exception as e:
-                raise HTTPException(status_code=422, detail=f"Excel parse failed: {e}")
-
-    elif url_lower.endswith(".pdf"):
-        try:
-            import pdfplumber
-            import io as _io
-            req = requests.get(source_url, timeout=20)
-            req.raise_for_status()
-            with pdfplumber.open(_io.BytesIO(req.content)) as pdf:
-                tables = []
-                for page in pdf.pages:
-                    t = page.extract_table()
-                    if t:
-                        tables.extend(t)
-            if not tables:
-                raise ValueError("No tables found in PDF")
-            df = pd.DataFrame(tables[1:], columns=tables[0])
-        except ImportError:
-            raise HTTPException(status_code=422, detail="pdfplumber not installed")
-        except Exception as e:
-            raise HTTPException(status_code=422, detail=f"PDF parse failed: {e}")
-
-    else:
-        req = requests.get(source_url, timeout=15)
-        req.raise_for_status()
-        parsed = False
-        for encoding in ["utf-8", "latin-1", "utf-8-sig"]:
-            try:
-                text = req.content.decode(encoding)
-                df = try_parse_csv(text)
-                parsed = True
-                break
-            except Exception:
-                continue
-        if not parsed:
-            text = req.content.decode("utf-8", errors="replace")
-            df = try_parse_csv(text)
+    try:
+        if url_lower.endswith(".xlsx") or url_lower.endswith(".xls"):
+            try: df = pd.read_excel(req.content, engine="openpyxl")
+            except: df = pd.read_excel(req.content, engine="xlrd")
+        elif url_lower.endswith(".pdf"):
+            df = parse_pdf_to_df(req.content)
+        else:
+            parsed = False
+            for encoding in ["utf-8", "latin-1", "utf-8-sig"]:
+                try:
+                    df = try_parse_csv(req.content.decode(encoding))
+                    parsed = True
+                    break
+                except: continue
+            if not parsed:
+                df = try_parse_csv(req.content.decode("utf-8", errors="replace"))
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Data parse failed: {e}")
 
     df = clean_dataframe(df)
 
@@ -301,35 +218,46 @@ def fetch_and_clean_df(dataset_id: str):
     return df, meta
 
 
+# 🚨 THE MASTER ANALYTICS FIX (NO MORE "COMPLAINT IDs" ON GRAPHS) 🚨
 def run_analytics(df: pd.DataFrame):
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
-    skip_kw = ["id", "sl", "no", "year", "code", "pin", "sr", "sno", "s.no"]
-    useful = [c for c in numeric_cols if not any(x in c.lower() for x in skip_kw)]
+    
+    # Use strict Regex word boundaries (\b) to permanently ignore Fake Numbers
+    skip_regex = re.compile(r'\b(id|sl|no|sr|sno|pin|code|year|phone|mobile|lat|lng|latitude|longitude|index)\b', re.IGNORECASE)
+    useful = [c for c in numeric_cols if not skip_regex.search(str(c))]
+    
+    # If it killed everything (extremely rare), fallback but STILL ignore exact IDs
+    if not useful and numeric_cols: 
+        salvage_regex = re.compile(r'\b(id|phone|mobile)\b', re.IGNORECASE)
+        useful = [c for c in numeric_cols if not salvage_regex.search(str(c))]
 
     insights = {
-        "analyzed_field": "N/A",
-        "total_sum": 0.0,
-        "average": 0.0,
-        "max_value": 0.0,
-        "min_value": 0.0,
-        "std_dev": 0.0,
-        "data_points": int(len(df)),
+        "analyzed_field": "N/A", "total_sum": 0.0, "average": 0.0,
+        "max_value": 0.0, "min_value": 0.0, "std_dev": 0.0, "data_points": int(len(df)),
     }
     flags = []
 
-    if not useful:
-        return insights, flags
+    if not useful: return insights, flags
 
-    target_col = useful[-1]
+    best_col = None
+    best_variance = -1
+    for col in useful:
+        series = pd.to_numeric(df[col], errors="coerce").dropna()
+        if len(series) >= 3:
+            v = float(series.var())
+            if v > best_variance:
+                best_variance = v
+                best_col = col
+
+    target_col = best_col if best_col else useful[-1]
     clean_series = pd.to_numeric(df[target_col], errors="coerce").dropna()
 
-    if clean_series.empty:
-        return insights, flags
+    if clean_series.empty: return insights, flags
 
     avg = float(clean_series.mean())
     std_dev = float(clean_series.std()) if len(clean_series) > 1 else 0.0
 
-    insights = {
+    insights.update({
         "analyzed_field": str(target_col),
         "total_sum": sanitize_float(clean_series.sum()),
         "average": sanitize_float(avg),
@@ -337,38 +265,78 @@ def run_analytics(df: pd.DataFrame):
         "min_value": sanitize_float(clean_series.min()),
         "std_dev": sanitize_float(std_dev),
         "data_points": int(len(df)),
-    }
+    })
 
-    if std_dev > 0:
-        threshold = avg + (2 * std_dev)
+    MIN_POINTS = 5
+    if std_dev > 0 and len(clean_series) >= MIN_POINTS and avg > 0:
+        threshold = avg + (2.0 * std_dev) # 2 Sigma for tighter anomaly detection
         anomaly_mask = pd.to_numeric(df[target_col], errors="coerce") > threshold
-        anomalies = df[anomaly_mask]
+        anomalies = df[anomaly_mask].copy()
 
-        entity_cols = ["Ward Name", "Ward_Name", "Location", "District", "State", "City", "Name", "Taluk", "Village"]
-        for index, row in anomalies.head(5).iterrows():
+        entity_cols = ["Ward Name", "Location", "District", "State", "City", "Name", "Taluk", "Village", "Zone", "Area"]
+
+        for index, row in anomalies.head(4).iterrows():
             entity = next(
-                (str(row[c]) for c in entity_cols if c in df.columns and pd.notna(row.get(c))),
-                f"Record {int(index)}"
+                (str(row[c]) for c in entity_cols if c in df.columns and pd.notna(row.get(c)) and str(row.get(c)).strip() not in ("", "nan", "None")),
+                f"Row {index + 1}",
             )
             val = pd.to_numeric(row[target_col], errors="coerce")
-            if pd.isna(val):
-                continue
+            if pd.isna(val): continue
             val_f = float(val)
+            multiplier = round(val_f / avg, 1) if avg != 0 else 0
+            deviation = round((val_f - avg) / std_dev, 2) if std_dev else 0
+
             flags.append({
-                "type": "Spending/Value Anomaly",
+                "type": "Statistical Outlier",
                 "entity": str(entity),
                 "value": sanitize_float(val_f),
-                "message": f"'{entity}' is {round(val_f / avg if avg != 0 else 0, 1)}x higher than average.",
-                "deviation_score": round((val_f - avg) / std_dev if std_dev else 0, 2),
+                "message": f"'{entity}' recorded {val_f:,.1f} (avg: {avg:,.0f}). {deviation}σ deviation.",
+                "deviation_score": deviation,
             })
 
     return insights, flags
-
 
 def df_to_safe_records(df: pd.DataFrame, limit: int = 50) -> list:
     df_slice = df.head(limit).copy()
     df_slice = df_slice.replace({pd.NA: None, float("nan"): None, float("inf"): None, float("-inf"): None})
     return numpy_to_python(df_slice.to_dict(orient="records"))
+
+
+# ─── DYNAMIC API AGGREGATOR ───────────────────────────────────────────────────
+def fetch_open_gov_data(keyword: str, limit: int = 10) -> list:
+    datasets = []
+    apis = [
+        f"https://data.gov.in/api/3/action/package_search?q={keyword}&rows={limit*3}",
+        f"https://catalog.data.gov/api/3/action/package_search?q={keyword}&rows={limit*3}"
+    ]
+    headers = {"User-Agent": "CivicIntelligence/1.0 (Hackathon Prototype)"}
+
+    for api_url in apis:
+        if len(datasets) >= limit: break
+        try:
+            resp = requests.get(api_url, headers=headers, timeout=12)
+            if resp.status_code != 200: continue
+            
+            results = resp.json().get("result", {}).get("results", [])
+            for pkg in results:
+                csv_res = next((r for r in pkg.get("resources", []) if str(r.get("format", "")).lower() in ["csv", "comma separated values"]), None)
+                
+                if csv_res and csv_res.get("url"):
+                    tags = [t.get("name", "").lower() for t in pkg.get("tags", []) if t.get("name")]
+                    if not tags: tags = [keyword, "government", "open-data"]
+                    
+                    datasets.append({
+                        "title": pkg.get("title", f"Civic Dataset: {keyword}").strip(),
+                        "description": str(pkg.get("notes", "No description provided."))[:400].strip(),
+                        "source_url": pkg.get("url") or csv_res.get("url"),
+                        "direct_csv_link": csv_res.get("url"),
+                        "tags": tags[:6],
+                        "column_headers": []
+                    })
+                    if len(datasets) >= limit: break
+        except Exception as e:
+            continue
+    return datasets
 
 
 # ─── ENDPOINT 1: JIT FETCH ────────────────────────────────────────────────────
@@ -389,20 +357,15 @@ async def jit_fetch_dataset(dataset_id: str, preview_limit: int = 50):
             },
             "data": df_to_safe_records(df, preview_limit),
         }
-    except HTTPException:
-        raise
     except Exception as e:
-        print(f"!!! JIT_FETCH_CRASH: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# ─── ENDPOINT 2: STREAMING JIT ────────────────────────────────────────────────
+# ─── ENDPOINT 2: STREAMING JIT (WITH REGION SLICER) ───────────────────────────
 @app.get("/api/jit-stream/{dataset_id}")
-async def jit_stream(dataset_id: str):
+async def jit_stream(dataset_id: str, region: Optional[str] = None):
     async def event_stream():
         def send(msg: str, pct: int) -> str:
             return f"data: {json.dumps({'message': msg, 'progress': pct})}\n\n"
-
         try:
             yield send("Connecting to Supabase catalog...", 5)
             await asyncio.sleep(0.05)
@@ -422,63 +385,67 @@ async def jit_stream(dataset_id: str):
             await asyncio.sleep(0.05)
 
             url_lower = source_url.lower().split("?")[0]
-            file_type = (
-                "xlsx" if (url_lower.endswith(".xlsx") or url_lower.endswith(".xls"))
-                else "pdf" if url_lower.endswith(".pdf")
-                else "csv"
-            )
+            file_type = ("xlsx" if (url_lower.endswith(".xlsx") or url_lower.endswith(".xls")) else "pdf" if url_lower.endswith(".pdf") else "csv")
 
-            req = requests.get(source_url, timeout=20)
-            req.raise_for_status()
+            try:
+                req = requests.get(source_url, timeout=25)
+                req.raise_for_status()
+            except Exception as e:
+                yield f"data: {json.dumps({'error': f'Failed to download data: {str(e)}'})}\n\n"
+                return
+
             size_kb = len(req.content) // 1024
             yield send(f"Downloaded {size_kb} KB of {file_type.upper()} data", 28)
             await asyncio.sleep(0.05)
 
-            if file_type == "xlsx":
-                try:
-                    df = pd.read_excel(req.content, engine="openpyxl")
-                except Exception:
-                    df = pd.read_excel(req.content, engine="xlrd")
-            elif file_type == "pdf":
-                import pdfplumber, io as _io
-                with pdfplumber.open(_io.BytesIO(req.content)) as pdf:
-                    tables = []
-                    for page in pdf.pages:
-                        t = page.extract_table()
-                        if t:
-                            tables.extend(t)
-                if not tables:
-                    yield f"data: {json.dumps({'error': 'No tables found in PDF'})}\n\n"
-                    return
-                df = pd.DataFrame(tables[1:], columns=tables[0])
-            else:
-                parsed = False
-                for encoding in ["utf-8", "latin-1", "utf-8-sig"]:
-                    try:
-                        text = req.content.decode(encoding)
-                        df = try_parse_csv(text)
-                        parsed = True
-                        break
-                    except Exception:
-                        continue
-                if not parsed:
-                    yield f"data: {json.dumps({'error': 'Could not parse CSV'})}\n\n"
-                    return
+            try:
+                if file_type == "xlsx":
+                    try: df = pd.read_excel(req.content, engine="openpyxl")
+                    except: df = pd.read_excel(req.content, engine="xlrd")
+                elif file_type == "pdf":
+                    df = parse_pdf_to_df(req.content)
+                else:
+                    parsed = False
+                    for encoding in ["utf-8", "latin-1", "utf-8-sig"]:
+                        try:
+                            text = req.content.decode(encoding)
+                            df = try_parse_csv(text)
+                            parsed = True
+                            break
+                        except: continue
+                    if not parsed:
+                        yield f"data: {json.dumps({'error': 'Could not parse CSV data'})}\n\n"
+                        return
+            except Exception as e:
+                yield f"data: {json.dumps({'error': f'File parsing failed: {str(e)}'})}\n\n"
+                return
 
             yield send(f"Parsed {len(df):,} rows × {len(df.columns)} columns", 48)
             await asyncio.sleep(0.05)
 
             df = clean_dataframe(df)
+
+            if region and region.strip():
+                yield send(f"Surgically extracting data for region: {region.upper()}...", 60)
+                await asyncio.sleep(0.05)
+                text_cols = [c for c in df.columns if df[c].dtype == "object"]
+                mask = pd.Series(False, index=df.index)
+                for c in text_cols:
+                    mask |= df[c].astype(str).str.contains(region, case=False, na=False)
+                
+                df = df[mask].reset_index(drop=True)
+                if df.empty:
+                    yield f"data: {json.dumps({'error': f'No data found for region: {region}'})}\n\n"
+                    return
+                meta['title'] = f"{meta['title']} (Filtered: {region.upper()})"
+
             numeric_count = len(df.select_dtypes(include=["number"]).columns)
             yield send(f"Cleaned {numeric_count} numeric columns", 64)
             await asyncio.sleep(0.05)
 
             try:
-                supabase.table("data_catalog").update(
-                    {"column_headers": df.columns.tolist()}
-                ).eq("id", dataset_id).execute()
-            except Exception:
-                pass
+                supabase.table("data_catalog").update({"column_headers": df.columns.tolist()}).eq("id", dataset_id).execute()
+            except: pass
 
             yield send("Running statistical analysis + anomaly detection...", 80)
             await asyncio.sleep(0.05)
@@ -506,7 +473,6 @@ async def jit_stream(dataset_id: str):
             yield f"data: {json.dumps({'done': True, 'payload': final_payload})}\n\n"
 
         except Exception as e:
-            print(f"!!! STREAM_CRASH: {e}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(
@@ -522,10 +488,7 @@ async def ai_analyze(payload: AIAnalyzePayload):
     try:
         stats = payload.stats
         flags = payload.flags
-        anomaly_text = (
-            "Anomalies detected:\n" + "\n".join(f"- {f['entity']}: {f['message']}" for f in flags[:3])
-            if flags else "No statistical anomalies detected."
-        )
+        anomaly_text = ("Anomalies detected:\n" + "\n".join(f"- {f['entity']}: {f['message']}" for f in flags[:3]) if flags else "No statistical anomalies detected.")
         prompt = f"""You are a senior civic data analyst reviewing Indian government data for policymakers and citizens.
 
 Dataset: {payload.title}
@@ -549,14 +512,9 @@ Write a 3-4 sentence analysis. Cite actual numbers. Explain what this means for 
         return {"status": "success", "analysis": completion.choices[0].message.content.strip()}
 
     except Exception as e:
-        print(f"!!! GROQ_CRASH: {e}")
         stats = payload.stats
         fc = len(payload.flags)
-        fallback = (
-            f"Analysis of '{payload.title}': {stats.get('data_points', 0)} records processed. "
-            f"Average {stats.get('analyzed_field', 'metric')} is {stats.get('average', 0):,.2f}. "
-            f"{'Flagged ' + str(fc) + ' outlier(s) requiring review.' if fc else 'Data distribution appears normal.'}"
-        )
+        fallback = f"Analysis of '{payload.title}': {stats.get('data_points', 0)} records processed. Average {stats.get('analyzed_field', 'metric')} is {stats.get('average', 0):,.2f}. {'Flagged ' + str(fc) + ' outlier(s) requiring review.' if fc else 'Data distribution appears normal.'}"
         return {"status": "fallback", "analysis": fallback}
 
 
@@ -566,10 +524,12 @@ async def natural_language_query(payload: NLQueryPayload):
     df = None
     try:
         df, meta = fetch_and_clean_df(payload.dataset_id)
+        numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
+        if len(df) < 2 or (len(numeric_cols) == 0 and len(df.columns) < 2):
+            return {"status": "error", "message": "Insufficient data in this dataset to answer questions.", "question": payload.question, "result_type": "", "result": None, "explanation": "", "pandas_expr": ""}
+
         columns_info = {col: str(df[col].dtype) for col in df.columns}
-        sample_rows = numpy_to_python(
-            df.head(3).replace({pd.NA: None, float("nan"): None, float("inf"): None}).to_dict(orient="records")
-        )
+        sample_rows = numpy_to_python(df.head(3).replace({pd.NA: None, float("nan"): None, float("inf"): None}).to_dict(orient="records"))
 
         prompt = f"""You are a Python/pandas expert. Given a dataframe `df`, write ONE pandas expression to answer the user's question.
 
@@ -584,14 +544,8 @@ Rules:
 - Use .head(10) if returning rows.
 - Prefer .to_dict(orient='records') for DataFrames or .to_dict() for Series.
 - Wrap scalar numeric results in float() or int() to avoid numpy types.
-- If unanswerable, return exactly: None
-
-Valid examples:
-df.groupby('Ward Name')['Budget'].sum().idxmax()
-float(df['Expenditure'].mean())
-int(df[df['Deaths'] > df['Deaths'].mean()].shape[0])
-df['Deaths'].describe().to_dict()
-df.nlargest(5, 'Expenditure')[['Ward Name','Expenditure']].to_dict(orient='records')"""
+- Only use column names that actually exist in the DataFrame above.
+- If the question cannot be answered with available columns, return exactly: None"""
 
         completion = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
@@ -601,65 +555,48 @@ df.nlargest(5, 'Expenditure')[['Ward Name','Expenditure']].to_dict(orient='recor
         )
 
         pandas_expr = completion.choices[0].message.content.strip().strip("`").strip()
+        if pandas_expr.startswith("python"): pandas_expr = pandas_expr[6:].strip()
+
         forbidden = ["import ", "exec(", "eval(", "open(", "os.", "sys.", "__", "subprocess", "shutil", "socket"]
         if any(f in pandas_expr for f in forbidden):
-            return {"status": "error", "message": "Cannot execute system operations."}
-        if pandas_expr in ("None", ""):
-            return {"status": "error", "message": "Not enough data to answer that question."}
+            return {"status": "error", "message": "Cannot execute system operations.", "question": payload.question, "result_type": "", "result": None, "explanation": "", "pandas_expr": ""}
 
-        result_raw = eval(pandas_expr, {"df": df, "pd": pd, "np": np, "__builtins__": {}})
+        if pandas_expr in ("None", ""):
+            return {"status": "error", "message": "Insufficient data to answer this question.", "question": payload.question, "result_type": "", "result": None, "explanation": "", "pandas_expr": ""}
+
+        try:
+            result_raw = eval(pandas_expr, {"df": df, "pd": pd, "np": np, "__builtins__": {}})
+        except Exception as eval_err:
+            return {"status": "error", "message": f"Insufficient data or column mismatch.", "question": payload.question, "result_type": "", "result": None, "explanation": "", "pandas_expr": pandas_expr}
+
+        if result_raw is None:
+            return {"status": "error", "message": "Insufficient data to answer this question with the available columns.", "question": payload.question, "result_type": "", "result": None, "explanation": "", "pandas_expr": pandas_expr}
 
         if isinstance(result_raw, pd.DataFrame):
-            result_data = numpy_to_python(
-                result_raw.head(10).replace({pd.NA: None, float("nan"): None, float("inf"): None}).to_dict(orient="records")
-            )
-            result_type = "table"
-            result_summary = f"{len(result_data)} rows returned"
+            if result_raw.empty: return {"status": "error", "message": "No matching records found.", "question": payload.question, "result_type": "", "result": None, "explanation": "", "pandas_expr": pandas_expr}
+            result_data = numpy_to_python(result_raw.head(10).replace({pd.NA: None, float("nan"): None, float("inf"): None}).to_dict(orient="records"))
+            result_type, result_summary = "table", f"{len(result_data)} rows returned"
         elif isinstance(result_raw, pd.Series):
+            if result_raw.empty: return {"status": "error", "message": "No matching records found.", "question": payload.question, "result_type": "", "result": None, "explanation": "", "pandas_expr": pandas_expr}
             result_data = numpy_to_python(result_raw.head(10).to_dict())
-            result_type = "series"
-            result_summary = str(result_data)[:300]
+            result_type, result_summary = "series", str(result_data)[:300]
         elif isinstance(result_raw, dict):
             result_data = numpy_to_python(result_raw)
-            result_type = "dict"
-            result_summary = str(result_data)[:300]
+            result_type, result_summary = "dict", str(result_data)[:300]
         else:
             result_data = numpy_to_python(result_raw)
-            result_type = "value"
-            result_summary = str(result_data)
+            result_type, result_summary = "value", str(result_data)
 
-        explain_prompt = f"""The user asked: "{payload.question}"
-Dataset: {meta.get('title', 'Government Dataset')}
-Result: {str(result_summary)[:400]}
-Write ONE clear sentence explaining what this means for a citizen. Use the actual number."""
+        explain_prompt = f"""The user asked: "{payload.question}"\nDataset: {meta.get('title', 'Government Dataset')}\nResult: {str(result_summary)[:400]}\nWrite ONE clear sentence explaining what this means for a citizen. Use the actual number."""
+        explanation_resp = groq_client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": explain_prompt}], max_tokens=100, temperature=0.3)
 
-        explanation_resp = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": explain_prompt}],
-            max_tokens=100,
-            temperature=0.3,
-        )
+        return {"status": "success", "question": payload.question, "pandas_expr": pandas_expr, "result_type": result_type, "result": result_data, "explanation": explanation_resp.choices[0].message.content.strip()}
 
-        return {
-            "status": "success",
-            "question": payload.question,
-            "pandas_expr": pandas_expr,
-            "result_type": result_type,
-            "result": result_data,
-            "explanation": explanation_resp.choices[0].message.content.strip(),
-        }
-
-    except SyntaxError:
-        return {"status": "error", "message": "Couldn't parse the query. Please rephrase."}
-    except KeyError as e:
-        available = list(df.columns[:8]) if df is not None else []
-        return {"status": "error", "message": f"Column {e} not found. Available: {available}"}
     except Exception as e:
-        print(f"!!! NL_QUERY_CRASH: {e}")
-        return {"status": "error", "message": f"Could not compute answer: {str(e)[:120]}"}
+        return {"status": "error", "message": "Insufficient data.", "question": payload.question, "result_type": "", "result": None, "explanation": "", "pandas_expr": ""}
 
 
-# ─── ENDPOINT 5: CORRELATION ──────────────────────────────────────────────────
+# ─── ENDPOINT 5: CORRELATION (NOW WITH CUSTOM QUERIES!) ───────────────────────
 @app.post("/api/correlate")
 async def correlate_datasets(payload: CorrelationPayload):
     try:
@@ -667,16 +604,10 @@ async def correlate_datasets(payload: CorrelationPayload):
             df, meta = fetch_and_clean_df(dataset_id)
             insights, flags = run_analytics(df)
             return {
-                "title": meta.get("title", "Unknown"),
-                "rows": int(len(df)),
-                "columns": df.columns.tolist()[:12],
-                "analyzed_field": insights.get("analyzed_field"),
-                "average": float(insights.get("average", 0)),
-                "max_value": float(insights.get("max_value", 0)),
-                "total_sum": float(insights.get("total_sum", 0)),
-                "anomaly_count": int(len(flags)),
-                "top_anomalies": [f["entity"] for f in flags[:3]],
-                "tags": meta.get("tags", []),
+                "title": meta.get("title", "Unknown"), "rows": int(len(df)), "columns": df.columns.tolist()[:12],
+                "analyzed_field": insights.get("analyzed_field"), "average": float(insights.get("average", 0)),
+                "max_value": float(insights.get("max_value", 0)), "total_sum": float(insights.get("total_sum", 0)),
+                "anomaly_count": int(len(flags)), "top_anomalies": [f["entity"] for f in flags[:3]], "tags": meta.get("tags", []),
             }
 
         summary_a = get_summary(payload.dataset_id_a)
@@ -693,30 +624,27 @@ Dataset B — {summary_b['title']}:
 - {summary_b['rows']} records | Metric: {summary_b['analyzed_field']} (avg: {summary_b['average']:.2f}, max: {summary_b['max_value']:.2f})
 - Anomalous entities: {summary_b['top_anomalies']}
 - Columns: {summary_b['columns'][:8]}
+"""
+        
+        # MAGICAL HACKATHON FEATURE: Custom Prompt Injection
+        if payload.query:
+            prompt += f"\nUser Question: '{payload.query}'\nAnswer this specific question concisely based on the data provided. Cite numbers from the summaries above. Maximum 4 sentences."
+        else:
+            prompt += f"\nIn 4-5 sentences: What relationships exist? What can policymakers learn? Flag shared outliers. What should citizens know? Be specific."
 
-In 4-5 sentences: What relationships exist? What can policymakers learn? Flag shared outliers. What should citizens know? Be specific."""
-
-        completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=350,
-            temperature=0.45,
-        )
-
+        completion = groq_client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": prompt}], max_tokens=350, temperature=0.45)
         shared_entities = list(set(summary_a["top_anomalies"]) & set(summary_b["top_anomalies"]))
 
         return {
-            "status": "success",
-            "dataset_a": summary_a["title"],
-            "dataset_b": summary_b["title"],
-            "shared_anomaly_entities": shared_entities,
-            "correlation_analysis": completion.choices[0].message.content.strip(),
-            "summary_a": summary_a,
-            "summary_b": summary_b,
+            "status": "success", 
+            "dataset_a": summary_a["title"], 
+            "dataset_b": summary_b["title"], 
+            "shared_anomaly_entities": shared_entities, 
+            "correlation_analysis": completion.choices[0].message.content.strip(), 
+            "summary_a": summary_a, 
+            "summary_b": summary_b
         }
-
     except Exception as e:
-        print(f"!!! CORRELATE_CRASH: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -726,31 +654,20 @@ async def save_report(payload: ReportPayload):
     try:
         report_id = str(uuid.uuid4())[:8].upper()
         supabase.table("public_reports").insert({
-            "id": report_id,
-            "dataset_title": payload.dataset_title,
-            "stats": payload.stats,
-            "flags": payload.flags,
-            "ai_analysis": payload.ai_analysis,
-            "chart_data": payload.chart_data,
-            "nl_queries": payload.nl_queries,
+            "id": report_id, "dataset_title": payload.dataset_title, "stats": payload.stats, "flags": payload.flags,
+            "ai_analysis": payload.ai_analysis, "chart_data": payload.chart_data, "nl_queries": payload.nl_queries,
         }).execute()
         return {"status": "success", "report_id": report_id, "share_url": f"/report/{report_id}"}
     except Exception as e:
-        print(f"!!! SAVE_REPORT_CRASH: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/get-report/{report_id}")
 async def get_report(report_id: str):
     try:
         resp = supabase.table("public_reports").select("*").eq("id", report_id.upper()).execute()
-        if not resp.data:
-            raise HTTPException(status_code=404, detail="Report not found")
+        if not resp.data: raise HTTPException(status_code=404, detail="Report not found")
         return {"status": "success", "report": resp.data[0]}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─── ENDPOINT 7: SEARCH ───────────────────────────────────────────────────────
@@ -759,20 +676,27 @@ async def relevance_search(search: SearchQuery):
     try:
         query = search.query.lower().strip()
 
-        if not query or query == "bbmp":
+        # Dynamic fallback: Search everything if query is generic
+        if not query:
             res = supabase.table("data_catalog").select("*").limit(12).execute()
-            for d in res.data:
-                d["relevance_confidence"] = "98%"
-            return {"status": "success", "datasets": res.data}
+            for d in res.data: d["relevance_confidence"] = "98%"
+            return {"status": "success", "suggested_dept": "All", "datasets": res.data}
 
-        stop_words = {
-            "why", "are", "there", "is", "what", "how", "the", "in", "of", "and",
-            "a", "to", "show", "me", "for", "give", "find", "get", "data",
-            "dataset", "about", "all", "list", "can", "you",
-        }
+        if any(word in query for word in ["accident", "crash", "traffic", "bus"]): suggested_dept = "Transport"
+        elif any(word in query for word in ["hospital", "sick", "disease", "health"]): suggested_dept = "Health"
+        elif any(word in query for word in ["money", "spend", "cost", "budget"]): suggested_dept = "Finance"
+        elif any(word in query for word in ["road", "water", "park", "building"]): suggested_dept = "Infrastructure"
+        else: suggested_dept = "Governance"
+
+        stop_words = {"why", "are", "there", "is", "what", "how", "the", "in", "of", "and", "a", "to", "show", "me", "for", "give", "find", "get", "data", "dataset", "about", "all", "list", "can", "you"}
         search_words = [w for w in re.split(r"\W+", query) if w not in stop_words and len(w) > 2]
-        if not search_words:
-            search_words = [query]
+        if not search_words: search_words = [query]
+
+        synonym_graph = {"accident": ["fatal", "traffic", "motor", "rto", "killed"], "money": ["budget", "finance", "lakh", "rs", "expenditure", "revenue"], "road": ["infrastructure", "length", "paved"], "hospital": ["clinic", "uphc", "health", "bed"]}
+        expanded = set(search_words)
+        for w in search_words:
+            for k, syns in synonym_graph.items():
+                if w in k or k in w: expanded.update(syns); expanded.add(k)
 
         all_data_res = supabase.table("data_catalog").select("*").execute()
         scored = []
@@ -784,7 +708,7 @@ async def relevance_search(search: SearchQuery):
             tags = [str(t).lower() for t in (ds.get("tags") or [])]
             headers = [str(h).lower() for h in (ds.get("column_headers") or [])]
 
-            for word in search_words:
+            for word in expanded:
                 if word in title: score += 15
                 if any(word in t for t in tags): score += 10
                 if any(word in h for h in headers): score += 8
@@ -796,35 +720,24 @@ async def relevance_search(search: SearchQuery):
                 scored.append(ds)
 
         scored.sort(key=lambda x: x["_score"], reverse=True)
-        for ds in scored:
-            del ds["_score"]
+        for ds in scored: del ds["_score"]
 
-        return {"status": "success", "results_count": len(scored), "datasets": scored[:12]}
+        return {"status": "success", "results_count": len(scored), "suggested_dept": suggested_dept, "datasets": scored[:12]}
 
     except Exception as e:
-        print(f"!!! SEARCH_CRASH: {e}")
         return {"status": "error", "message": "Search failed."}
 
 
-# ─── ENDPOINT 8: SEED (hardcoded real datasets — no external API) ─────────────
+# ─── ENDPOINT 8: SEED (LIVE DATA AGGREGATOR) ──────────────────────────────────
 @app.post("/api/seed")
-async def seed_catalog(keyword: str = "BBMP", limit: int = 10):
-    """
-    Inserts hardcoded verified government dataset metadata into Supabase.
-    No external API call — bypasses broken data.gov.in catalog API.
-    Filters by keyword if provided.
-    """
+async def seed_catalog(keyword: str = "health", limit: int = 10):
     try:
-        kw = keyword.lower()
-        matching = [
-            d for d in HARDCODED_DATASETS
-            if kw in d["title"].lower()
-            or any(kw in t.lower() for t in d["tags"])
-            or kw == "all"
-        ] or HARDCODED_DATASETS  # if no match, insert all
+        live_datasets = fetch_open_gov_data(keyword, limit)
+        if not live_datasets:
+            return {"status": "error", "message": "Failed to fetch live datasets from open data portals."}
 
         inserted, skipped = [], []
-        for record in matching[:limit]:
+        for record in live_datasets:
             try:
                 existing = supabase.table("data_catalog").select("id").eq("title", record["title"]).execute()
                 if existing.data:
@@ -841,34 +754,38 @@ async def seed_catalog(keyword: str = "BBMP", limit: int = 10):
             "inserted": len(inserted),
             "skipped": len(skipped),
             "titles": inserted,
-            "note": "Using hardcoded verified datasets — data.gov.in catalog API bypassed",
+            "note": "Aggregated dynamically from live Open Government Data APIs."
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ─── ENDPOINT 9: SEED ALL ────────────────────────────────────────────────────
+# ─── ENDPOINT 9: SEED ALL (MULTI-DOMAIN AGGREGATOR) ───────────────────────────
 @app.post("/api/seed-all")
 async def seed_all():
-    """Insert ALL hardcoded datasets at once."""
+    domains = ["finance", "infrastructure", "health", "transport"]
     inserted, skipped = [], []
-    for record in HARDCODED_DATASETS:
-        try:
-            existing = supabase.table("data_catalog").select("id").eq("title", record["title"]).execute()
-            if existing.data:
-                skipped.append(record["title"])
-                continue
-            supabase.table("data_catalog").insert(record).execute()
-            inserted.append(record["title"])
-        except Exception as e:
-            skipped.append(f"{record['title']} ({str(e)[:40]})")
+    
+    for domain in domains:
+        live_datasets = fetch_open_gov_data(domain, limit=5)
+        for record in live_datasets:
+            try:
+                existing = supabase.table("data_catalog").select("id").eq("title", record["title"]).execute()
+                if existing.data:
+                    skipped.append(record["title"])
+                    continue
+                supabase.table("data_catalog").insert(record).execute()
+                inserted.append(record["title"])
+            except Exception as e:
+                skipped.append(f"{record['title']} ({str(e)[:40]})")
 
     return {
         "status": "success",
         "inserted": len(inserted),
         "skipped": len(skipped),
         "all_titles": inserted,
+        "note": "Multi-domain live aggregation complete."
     }
 
 
@@ -878,7 +795,7 @@ def health():
     return {
         "status": "✅ InsightAR Civic Engine Active",
         "groq_model": "llama-3.1-8b-instant",
-        "hardcoded_datasets": len(HARDCODED_DATASETS),
+        "architecture": "Dynamic Live API Aggregation",
         "endpoints": [
             "GET  /api/jit-fetch/{id}",
             "GET  /api/jit-stream/{id}",
@@ -888,7 +805,7 @@ def health():
             "POST /api/save-report",
             "GET  /api/get-report/{id}",
             "POST /api/search",
-            "POST /api/seed          ← hardcoded datasets, no external API",
-            "POST /api/seed-all      ← insert ALL 12 datasets at once",
+            "POST /api/seed         ← Fetches LIVE datasets from Gov CKAN",
+            "POST /api/seed-all     ← Aggregates multi-domain live data",
         ],
     }

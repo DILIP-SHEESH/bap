@@ -358,30 +358,7 @@ git push origin feature/your-feature-name
 
 ---
 
-## 📜 License
+## Team
 
-MIT © 2026 [DILIP-SHEESH](https://github.com/DILIP-SHEESH)
-
----
-
-<div align="center">
-
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0f172a,1e3a5f,2563eb&height=100&section=footer" width="100%" />
-
-<sub>
-  Built with 🔵 in Bengaluru · Powered by open government data · Made for citizens, by citizens
-</sub>
-
-<br/><br/>
-
-<p>
-  <a href="https://github.com/DILIP-SHEESH/bap/stargazers">
-    <img src="https://img.shields.io/github/stars/DILIP-SHEESH/bap?style=social" />
-  </a>
-  &nbsp;
-  <a href="https://github.com/DILIP-SHEESH/bap/network/members">
-    <img src="https://img.shields.io/github/forks/DILIP-SHEESH/bap?style=social" />
-  </a>
-</p>
-
-</div>
+Built for the Open Data Hackathon 2025.
+InsightAR — making government data speak plain English.

@@ -1,4 +1,5 @@
 fastapi
+pandas
 uvicorn[standard]
 python-dotenv
 sqlalchemy
